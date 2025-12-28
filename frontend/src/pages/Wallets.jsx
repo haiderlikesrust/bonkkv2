@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet, Copy, Check, ExternalLink, Plus, Key, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { createWallet, createDevWallet, connectWallet } from '../services/api.js';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
+import { getSolanaConnection } from '../utils/solana.js';
 import { useToast } from '../hooks/useToast.js';
 import ToastContainer from '../components/ToastContainer.jsx';
 
@@ -33,10 +34,7 @@ export default function Wallets() {
   const fetchBalance = async (address) => {
     try {
       setLoadingBalance(true);
-      const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC || 'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
+      const connection = getSolanaConnection();
       const publicKey = new PublicKey(address);
       const balanceLamports = await connection.getBalance(publicKey);
       const balanceSOL = balanceLamports / 1e9; // Convert lamports to SOL

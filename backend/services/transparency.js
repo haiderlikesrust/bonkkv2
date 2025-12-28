@@ -8,7 +8,13 @@ import axios from 'axios';
  */
 class TransparencyService {
   constructor() {
-    this.connection = new Connection(config.solana.rpcUrl, 'confirmed');
+    // Use Helius connection with API key if available
+    this.connection = new Connection(config.solana.rpcUrl, {
+      commitment: 'confirmed',
+      httpHeaders: config.solana.heliusApiKey ? {
+        'x-api-key': config.solana.heliusApiKey,
+      } : undefined,
+    });
   }
 
   /**
@@ -17,43 +23,55 @@ class TransparencyService {
    */
   async getTokenTransactionHistory(mintAddress, limit = 50) {
     try {
-      const mintPubkey = new PublicKey(mintAddress);
+      // Validate mint address
+      if (!mintAddress || typeof mintAddress !== 'string') {
+        throw new Error('Invalid mint address');
+      }
+
+      let mintPubkey;
+      try {
+        mintPubkey = new PublicKey(mintAddress);
+      } catch (error) {
+        console.error('Invalid PublicKey format:', mintAddress, error.message);
+        throw new Error(`Invalid mint address format: ${mintAddress}`);
+      }
+      
+      // Reduce limit to minimize RPC calls (max 20 transactions)
+      const reducedLimit = Math.min(limit, 20);
       
       // Fetch signatures for the token account
-      const signatures = await this.connection.getSignaturesForAddress(
-        mintPubkey,
-        { limit }
-      );
+      const signatures = await this.connection.getSignaturesForAddress(mintPubkey, { limit: reducedLimit });
 
-      const transactions = await Promise.all(
-        signatures.slice(0, limit).map(async (sigInfo) => {
-          try {
-            const tx = await this.connection.getTransaction(sigInfo.signature, {
-              maxSupportedTransactionVersion: 0,
-            });
+      // Process transactions sequentially
+      // Only fetch first 10 transactions to reduce RPC load
+      const transactions = [];
+      for (const sigInfo of signatures.slice(0, 10)) {
+        try {
+          const tx = await this.connection.getTransaction(sigInfo.signature, {
+            maxSupportedTransactionVersion: 0,
+          });
 
-            if (!tx) return null;
+          if (!tx) continue;
 
-            return {
-              signature: sigInfo.signature,
-              blockTime: sigInfo.blockTime,
-              slot: sigInfo.slot,
-              err: sigInfo.err,
-              fee: tx.meta?.fee || 0,
-              status: sigInfo.err ? 'failed' : 'success',
-              // Parse transaction details
-              preBalances: tx.meta?.preBalances || [],
-              postBalances: tx.meta?.postBalances || [],
-              logMessages: tx.meta?.logMessages || [],
-            };
-          } catch (error) {
-            console.error(`Error fetching transaction ${sigInfo.signature}:`, error.message);
-            return null;
-          }
-        })
-      );
+          transactions.push({
+            signature: sigInfo.signature,
+            blockTime: sigInfo.blockTime,
+            slot: sigInfo.slot,
+            err: sigInfo.err,
+            fee: tx.meta?.fee || 0,
+            status: sigInfo.err ? 'failed' : 'success',
+            // Parse transaction details
+            preBalances: tx.meta?.preBalances || [],
+            postBalances: tx.meta?.postBalances || [],
+            logMessages: tx.meta?.logMessages || [],
+          });
+        } catch (error) {
+          console.error(`Error fetching transaction ${sigInfo.signature}:`, error.message);
+          // Continue to next transaction instead of failing
+        }
+      }
 
-      return transactions.filter(tx => tx !== null);
+      return transactions;
     } catch (error) {
       console.error('Error fetching token transaction history:', error);
       throw error;
@@ -87,10 +105,7 @@ class TransparencyService {
       );
 
       // Fetch signatures for transfers
-      const signatures = await this.connection.getSignaturesForAddress(
-        mintPubkey,
-        { limit }
-      );
+      const signatures = await this.connection.getSignaturesForAddress(mintPubkey, { limit });
 
       const transfers = [];
       for (const sigInfo of signatures.slice(0, limit)) {
@@ -136,44 +151,56 @@ class TransparencyService {
    */
   async getWalletTransactionHistory(walletAddress, limit = 50) {
     try {
-      const walletPubkey = new PublicKey(walletAddress);
+      // Validate wallet address
+      if (!walletAddress || typeof walletAddress !== 'string') {
+        throw new Error('Invalid wallet address');
+      }
+
+      let walletPubkey;
+      try {
+        walletPubkey = new PublicKey(walletAddress);
+      } catch (error) {
+        console.error('Invalid PublicKey format:', walletAddress, error.message);
+        throw new Error(`Invalid wallet address format: ${walletAddress}`);
+      }
       
-      const signatures = await this.connection.getSignaturesForAddress(
-        walletPubkey,
-        { limit }
-      );
+      // Reduce limit to minimize RPC calls
+      const reducedLimit = Math.min(limit, 20);
+      
+      const signatures = await this.connection.getSignaturesForAddress(walletPubkey, { limit: reducedLimit });
 
-      const transactions = await Promise.all(
-        signatures.slice(0, limit).map(async (sigInfo) => {
-          try {
-            const tx = await this.connection.getTransaction(sigInfo.signature, {
-              maxSupportedTransactionVersion: 0,
-            });
+      // Process transactions sequentially
+      // Only fetch first 10 transactions to reduce RPC load
+      const transactions = [];
+      for (const sigInfo of signatures.slice(0, 10)) {
+        try {
+          const tx = await this.connection.getTransaction(sigInfo.signature, {
+            maxSupportedTransactionVersion: 0,
+          });
 
-            if (!tx) return null;
+          if (!tx) continue;
 
-            const preBalance = tx.meta?.preBalances?.[0] || 0;
-            const postBalance = tx.meta?.postBalances?.[0] || 0;
-            const balanceChange = (postBalance - preBalance) / 1e9; // Convert to SOL
+          const preBalance = tx.meta?.preBalances?.[0] || 0;
+          const postBalance = tx.meta?.postBalances?.[0] || 0;
+          const balanceChange = (postBalance - preBalance) / 1e9; // Convert to SOL
 
-            return {
-              signature: sigInfo.signature,
-              blockTime: sigInfo.blockTime,
-              slot: sigInfo.slot,
-              err: sigInfo.err,
-              fee: tx.meta?.fee || 0,
-              status: sigInfo.err ? 'failed' : 'success',
-              balanceChange: balanceChange,
-              solscanUrl: `https://solscan.io/tx/${sigInfo.signature}`,
-            };
-          } catch (error) {
-            console.error(`Error fetching transaction ${sigInfo.signature}:`, error.message);
-            return null;
-          }
-        })
-      );
+          transactions.push({
+            signature: sigInfo.signature,
+            blockTime: sigInfo.blockTime,
+            slot: sigInfo.slot,
+            err: sigInfo.err,
+            fee: tx.meta?.fee || 0,
+            status: sigInfo.err ? 'failed' : 'success',
+            balanceChange: balanceChange,
+            solscanUrl: `https://solscan.io/tx/${sigInfo.signature}`,
+          });
+        } catch (error) {
+          console.error(`Error fetching transaction ${sigInfo.signature}:`, error.message);
+          // Continue to next transaction instead of failing
+        }
+      }
 
-      return transactions.filter(tx => tx !== null);
+      return transactions;
     } catch (error) {
       console.error('Error fetching wallet transaction history:', error);
       throw error;
@@ -185,15 +212,24 @@ class TransparencyService {
    */
   async getWalletStats(walletAddress) {
     try {
-      const walletPubkey = new PublicKey(walletAddress);
+      // Validate wallet address
+      if (!walletAddress || typeof walletAddress !== 'string') {
+        throw new Error('Invalid wallet address');
+      }
+
+      let walletPubkey;
+      try {
+        walletPubkey = new PublicKey(walletAddress);
+      } catch (error) {
+        console.error('Invalid PublicKey format:', walletAddress, error.message);
+        throw new Error(`Invalid wallet address format: ${walletAddress}`);
+      }
+
       const balance = await this.connection.getBalance(walletPubkey);
       const balanceSOL = balance / 1e9;
 
       // Get transaction count
-      const signatures = await this.connection.getSignaturesForAddress(
-        walletPubkey,
-        { limit: 1000 }
-      );
+      const signatures = await this.connection.getSignaturesForAddress(walletPubkey, { limit: 1000 });
 
       return {
         address: walletAddress,

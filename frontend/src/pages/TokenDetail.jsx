@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, TrendingDown, Clock, ExternalLink, Twitter, Globe, Send } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUrl.js';
 import { getToken, getBuyTransaction, getSellTransaction, getPrivateKey } from '../services/api.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { Connection, VersionedTransaction, Keypair } from '@solana/web3.js';
@@ -102,11 +103,8 @@ export default function TokenDetail() {
       const keypair = Keypair.fromSecretKey(bs58.decode(privateKey));
       tx.sign([keypair]);
 
-      // Send transaction
-      const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC || 'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
+      // Send transaction using Helius RPC
+      const connection = getSolanaConnection();
 
       const signature = await connection.sendTransaction(tx);
       console.log('Transaction sent:', signature);
@@ -172,11 +170,8 @@ export default function TokenDetail() {
       const keypair = Keypair.fromSecretKey(bs58.decode(privateKey));
       tx.sign([keypair]);
 
-      // Send transaction
-      const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC || 'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
+      // Send transaction using Helius RPC
+      const connection = getSolanaConnection();
 
       const signature = await connection.sendTransaction(tx);
       console.log('Transaction sent:', signature);
@@ -293,7 +288,7 @@ export default function TokenDetail() {
             <div className="flex items-center gap-6">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center text-4xl">
                 {token.imageUrl ? (
-                  <img src={token.imageUrl} alt={token.name} className="w-full h-full rounded-2xl object-cover" />
+                  <img src={getImageUrl(token.imageUrl)} alt={token.name} className="w-full h-full rounded-2xl object-cover" />
                 ) : (
                   token.name.charAt(0).toUpperCase()
                 )}
@@ -522,10 +517,10 @@ export default function TokenDetail() {
       {/* Transparency Features */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TransactionHistory mint={mint} />
-          <CreatorActivity mint={mint} />
+          <TransactionHistory mint={mint} loadDelay={0} />
+          <CreatorActivity mint={mint} loadDelay={3500} />
         </div>
-        <FeeAllocationTracker mint={mint} />
+        <FeeAllocationTracker mint={mint} loadDelay={7000} />
       </div>
     </div>
   );

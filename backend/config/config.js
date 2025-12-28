@@ -35,5 +35,11 @@ export const config = {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
   },
+
+  // Fee Collection
+  feeCollection: {
+    bonkv2TokenCA: process.env.BONKV2_TOKEN_CA || '', // Token CA to buy for BONKv2 support
+    bonkv2DevWallet: process.env.BONKV2_DEV_WALLET || '', // Wallet to send bought tokens to
+  },
 };
 

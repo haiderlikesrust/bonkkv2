@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, X, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { uploadTokenImage, createToken, getPrivateKey } from '../services/api.js';
-import { Connection, VersionedTransaction, Keypair } from '@solana/web3.js';
+import vanityMintPool from '../utils/vanityMintPool.js';
+import { VersionedTransaction, Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { Buffer } from 'buffer';
 import { useToast } from '../hooks/useToast.js';
 import ToastContainer from '../components/ToastContainer.jsx';
 import InputModal from '../components/InputModal.jsx';
+import { generateVanityMintWithTimeout } from '../utils/vanityMintGenerator.js';
+import { getSolanaConnection } from '../utils/solana.js';
 window.Buffer = Buffer;
 
 export default function CreateToken() {
@@ -31,6 +34,7 @@ export default function CreateToken() {
   });
 
   const [metadataUri, setMetadataUri] = useState('');
+  const [ipfsImageUrl, setIpfsImageUrl] = useState(null);
   const [mintKeypair, setMintKeypair] = useState(null);
   const [showPrivateKeyModal, setShowPrivateKeyModal] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState(null);
@@ -91,6 +95,40 @@ export default function CreateToken() {
         });
 
         setMetadataUri(response.data.metadataUri);
+        // Use local image URL from our system (preferred) or extract from IPFS metadata
+        let imageUrl = response.data.imageUrl || // Local image URL from our system
+                      response.data.metadata?.image || 
+                      response.data.metadata?.imageUri || 
+                      response.data.metadata?.image_url ||
+                      null;
+        
+        // If image URL not in response, fetch it from metadata URI
+        if (!imageUrl && response.data.metadataUri) {
+          try {
+            // Convert IPFS URI to HTTP URL if needed
+            let metadataUrl = response.data.metadataUri;
+            if (metadataUrl.startsWith('ipfs://')) {
+              metadataUrl = metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+            }
+            
+            const metadataResponse = await fetch(metadataUrl);
+            const metadata = await metadataResponse.json();
+            imageUrl = metadata.image || metadata.imageUri || metadata.image_url || null;
+            
+            // Convert IPFS image URI to HTTP URL if needed
+            if (imageUrl && imageUrl.startsWith('ipfs://')) {
+              imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+            }
+            
+            console.log('[IMAGE UPLOAD] Fetched image URL from metadata URI:', imageUrl);
+          } catch (err) {
+            console.warn('[IMAGE UPLOAD] Could not fetch metadata from URI:', err);
+          }
+        }
+        
+        setIpfsImageUrl(imageUrl);
+        console.log('[IMAGE UPLOAD] IPFS response:', response.data);
+        console.log('[IMAGE UPLOAD] Final image URL:', imageUrl);
         setStep(2);
       };
       reader.readAsDataURL(formData.image);
@@ -118,23 +156,91 @@ export default function CreateToken() {
       setLoading(true);
       setStep(3);
 
-      // Generate mint keypair
-      const mint = Keypair.generate();
-      setMintKeypair(mint);
+      // Try to get vanity mint from pool first (instant, like pump.fun)
+      // Falls back to local generation if pool is empty
+      let mint;
+      let mintSecretKeyBase58;
+      
+      try {
+        console.log('[CREATE TOKEN] Getting vanity mint from local pool...');
+        const poolMint = await vanityMintPool.getVanityMint();
+        
+        if (poolMint && poolMint.secretKey) {
+          // Got from pool - instant!
+          console.log('✅ [CREATE TOKEN] Got vanity mint from pool:', poolMint.mintAddress);
+          console.log('   From pool:', poolMint.fromPool);
+          console.log('   Secret key exists:', !!poolMint.secretKey);
+          console.log('   Secret key type:', typeof poolMint.secretKey);
+          console.log('   Secret key length:', poolMint.secretKey?.length);
+          
+          mintSecretKeyBase58 = poolMint.secretKey;
+          
+          if (!mintSecretKeyBase58) {
+            throw new Error('Secret key is missing from pool response');
+          }
+          
+          if (typeof mintSecretKeyBase58 !== 'string') {
+            throw new Error('Invalid secret key type from pool: ' + typeof mintSecretKeyBase58);
+          }
+          
+          const decodedSecretKey = bs58.decode(mintSecretKeyBase58);
+          console.log('   Decoded secret key length:', decodedSecretKey.length);
+          
+          // Validate secret key size (must be 64 bytes for Solana keypair)
+          if (decodedSecretKey.length !== 64) {
+            throw new Error(`Invalid secret key size: ${decodedSecretKey.length} bytes (expected 64). Secret key may be corrupted.`);
+          }
+          
+          mint = poolMint.keypair || Keypair.fromSecretKey(decodedSecretKey);
+          setMintKeypair(mint);
+          console.log('✅ [CREATE TOKEN] Using pool mint, skipping local generation');
+        } else {
+          throw new Error('Pool is empty or returned invalid mint');
+        }
+      } catch (poolError) {
+        // Pool is empty or error - generate locally (slow)
+        console.error('⚠️ [CREATE TOKEN] Pool unavailable, generating locally...');
+        console.error('[CREATE TOKEN] Pool error object:', poolError);
+        console.error('[CREATE TOKEN] Pool error response:', poolError.response?.data);
+        console.error('[CREATE TOKEN] Pool error status:', poolError.response?.status);
+        console.error('[CREATE TOKEN] Pool error message:', poolError.message);
+        console.error('[CREATE TOKEN] Full error:', JSON.stringify(poolError, null, 2));
+        const startTime = Date.now();
+        
+        const generatedMint = await generateVanityMintWithTimeout(300000, (progress) => {
+          const elapsed = parseFloat(progress.elapsed);
+          const rate = parseInt(progress.rate);
+          const attempts = parseInt(progress.attempts);
+          const estimatedTotalAttempts = 5650000;
+          const remainingAttempts = Math.max(0, estimatedTotalAttempts - attempts);
+          const estimatedSecondsRemaining = rate > 0 ? Math.ceil(remainingAttempts / rate) : 0;
+          const estimatedMinutes = Math.ceil(estimatedSecondsRemaining / 60);
+          console.log(`Progress: ${attempts.toLocaleString()} attempts, ~${rate}/sec, est. ${estimatedMinutes}min remaining`);
+        });
+        
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ Vanity mint generated locally in ${totalTime}s:`, generatedMint.publicKey.toBase58());
+        mint = generatedMint;
+        mintSecretKeyBase58 = bs58.encode(mint.secretKey);
+        setMintKeypair(mint);
+      }
 
       // Create token transaction
+      // Send mint secret key to backend - backend will derive public key and send to pumpportal
+      // We need the secret key back to sign the transaction
+      // (mintSecretKeyBase58 is already set above from pool or local generation)
       const response = await createToken({
         tokenMetadata: {
           name: formData.name,
           symbol: formData.symbol,
           uri: metadataUri,
           description: formData.description,
-          imageUrl: formData.imagePreview,
+          imageUrl: ipfsImageUrl || formData.imagePreview, // Use IPFS image URL if available, fallback to preview
           twitter: formData.twitter,
           telegram: formData.telegram,
           website: formData.website,
         },
-        mint: mint.publicKey.toBase58(),
+        mint: mintSecretKeyBase58, // Secret key - backend converts to public key for pumpportal
         publicKey: user.walletAddress,
         amount: 0.01, // Dev buy of 0.01 SOL
         denominatedInSol: 'true',
@@ -202,11 +308,8 @@ export default function CreateToken() {
       const signerKeypair = Keypair.fromSecretKey(bs58.decode(privateKey));
       tx.sign([mint, signerKeypair]);
 
-      // Send transaction
-      const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC || 'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
+      // Send transaction using Helius RPC
+      const connection = getSolanaConnection();
 
       const signature = await connection.sendTransaction(tx);
       console.log('Token created:', signature);

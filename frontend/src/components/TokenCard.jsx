@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Clock } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUrl.js';
 
 export default function TokenCard({ token, isHot = false }) {
   const navigate = useNavigate();
@@ -25,8 +26,9 @@ export default function TokenCard({ token, isHot = false }) {
   // Use marketCap from API, with fallbacks
   const marketCapValue = marketCap || usd_market_cap || market_cap || 0;
   
-  // Use the first available image field
-  const imageUrl = tokenImageUrl || image_uri || imageUri || image_url || null;
+  // Use the first available image field and convert to absolute URL
+  const rawImageUrl = tokenImageUrl || image_uri || imageUri || image_url || null;
+  const imageUrl = getImageUrl(rawImageUrl);
   
   // createdAt from API is already formatted as "Xm ago", "Xh ago", etc.
   const createdAtFormatted = createdAt || created_at || 'Recently';

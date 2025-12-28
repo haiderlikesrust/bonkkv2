@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal.jsx';
+import { getImageUrl } from '../utils/imageUrl.js';
 
 export default function FeeDistributionModal({ isOpen, onClose, token, onSave }) {
   const [feeDistribution, setFeeDistribution] = useState({
@@ -57,7 +58,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center">
                 {token.imageUrl ? (
-                  <img src={token.imageUrl} alt={token.name} className="w-full h-full rounded-xl object-cover" />
+                  <img src={getImageUrl(token.imageUrl)} alt={token.name} className="w-full h-full rounded-xl object-cover" />
                 ) : (
                   token.name?.charAt(0).toUpperCase() || 'T'
                 )}

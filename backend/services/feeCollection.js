@@ -1,4 +1,5 @@
 import { Connection, PublicKey, VersionedTransaction, Keypair, SystemProgram, Transaction } from '@solana/web3.js';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, createTransferInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import bs58 from 'bs58';
 import axios from 'axios';
 import tokenService from './token.js';
@@ -28,7 +29,8 @@ class FeeCollectionService {
     try {
       const mintPubkey = new PublicKey(mintAddress);
       
-      // Get all token accounts for this mint using getProgramAccounts
+      // Get all token accounts for this mint using getParsedProgramAccounts
+      // The mint address is stored at offset 0 in the token account data
       const accounts = await this.connection.getParsedProgramAccounts(
         new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token Program
         {
@@ -38,8 +40,8 @@ class FeeCollectionService {
             },
             {
               memcmp: {
-                offset: 0,
-                bytes: mintPubkey.toBase58(),
+                offset: 0, // Mint address is at offset 0
+                bytes: mintPubkey.toBuffer(), // Use buffer, not base58 string
               },
             },
           ],
@@ -50,13 +52,24 @@ class FeeCollectionService {
       const holders = accounts
         .map(account => {
           try {
-            const parsedInfo = account.account.data.parsed.info;
+            const parsedInfo = account.account.data.parsed?.info;
+            if (!parsedInfo) {
+              return null;
+            }
+            
             const owner = parsedInfo.owner;
             const tokenAmount = parsedInfo.tokenAmount;
             
+            // Get the actual balance
+            const balance = parseFloat(tokenAmount.uiAmountString || tokenAmount.uiAmount || 0);
+            
+            if (balance <= 0) {
+              return null;
+            }
+            
             return {
               address: owner,
-              balance: parseFloat(tokenAmount.uiAmountString || tokenAmount.uiAmount || 0),
+              balance: balance,
               account: account.pubkey.toBase58(),
             };
           } catch (parseError) {
@@ -64,14 +77,18 @@ class FeeCollectionService {
             return null;
           }
         })
-        .filter(h => h && h.balance > 0)
+        .filter(h => h !== null && h.balance > 0)
         .sort((a, b) => b.balance - a.balance)
         .slice(0, topN);
 
       console.log(`📊 Found ${holders.length} top holders for ${mintAddress}`);
+      if (holders.length > 0) {
+        console.log(`   Top holder: ${holders[0].address} (${holders[0].balance.toFixed(2)} tokens)`);
+      }
       return holders;
     } catch (error) {
       console.error(`Error getting top holders for ${mintAddress}:`, error.message);
+      console.error(`Error stack:`, error.stack);
       // Return empty array on error so the process can continue
       return [];
     }
@@ -220,12 +237,156 @@ class FeeCollectionService {
   }
 
   /**
-   * Buy BONK token (for supportBonkv2 distribution)
+   * Transfer SPL tokens from one wallet to another
    */
-  async buyBONK(buyerPrivateKey, amountSOL) {
-    // BONK token mint address on Solana
-    const BONK_MINT = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263';
-    return this.buyToken(BONK_MINT, buyerPrivateKey, amountSOL);
+  async transferSPLToken(mintAddress, fromKeypair, toAddress, amount) {
+    try {
+      const mintPubkey = new PublicKey(mintAddress);
+      const toPubkey = new PublicKey(toAddress);
+      
+      // Get associated token addresses
+      const fromTokenAccount = await getAssociatedTokenAddress(mintPubkey, fromKeypair.publicKey);
+      const toTokenAccount = await getAssociatedTokenAddress(mintPubkey, toPubkey);
+      
+      // Check if source token account exists and has balance
+      let fromAccountInfo;
+      try {
+        fromAccountInfo = await getAccount(this.connection, fromTokenAccount);
+      } catch (error) {
+        console.error(`Source token account not found: ${fromTokenAccount.toBase58()}`);
+        return { success: false, error: 'Source token account not found or has no balance' };
+      }
+      
+      // Check if destination token account exists, create if not
+      let toAccountInfo;
+      try {
+        toAccountInfo = await getAccount(this.connection, toTokenAccount);
+      } catch (error) {
+        // Account doesn't exist, need to create it
+        console.log(`Creating associated token account for destination: ${toTokenAccount.toBase58()}`);
+      }
+      
+      // Build transaction
+      const transaction = new Transaction();
+      
+      // Add instruction to create destination token account if it doesn't exist
+      if (!toAccountInfo) {
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            fromKeypair.publicKey, // Payer
+            toTokenAccount, // Associated token account to create
+            toPubkey, // Owner
+            mintPubkey // Mint
+          )
+        );
+      }
+      
+      // Add transfer instruction
+      // amount is in token's smallest unit (e.g., if token has 6 decimals, 1 token = 1,000,000)
+      // We'll transfer the entire balance from the source account
+      const transferAmount = fromAccountInfo.amount; // Transfer all tokens
+      
+      transaction.add(
+        createTransferInstruction(
+          fromTokenAccount, // Source
+          toTokenAccount, // Destination
+          fromKeypair.publicKey, // Owner of source account
+          transferAmount // Amount to transfer
+        )
+      );
+      
+      // Get recent blockhash and send
+      const { blockhash } = await this.connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromKeypair.publicKey;
+      transaction.sign(fromKeypair);
+      
+      const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+      
+      await this.connection.confirmTransaction(signature, 'confirmed');
+      
+      // Get mint info to determine decimals for formatting
+      const mintInfo = await this.connection.getParsedAccountInfo(mintPubkey);
+      const decimals = mintInfo.value?.data?.parsed?.info?.decimals || 6; // Default to 6 decimals
+      const transferAmountFormatted = Number(transferAmount) / Math.pow(10, decimals);
+      console.log(`✅ Transferred ${transferAmountFormatted.toFixed(6)} tokens to ${toAddress}: https://solscan.io/tx/${signature}`);
+      
+      return { success: true, signature, amount: transferAmountFormatted };
+    } catch (error) {
+      console.error(`Error transferring SPL token:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Buy BONKv2 support token and send to dev wallet
+   * Buys the token specified in BONKV2_TOKEN_CA and sends it to BONKV2_DEV_WALLET
+   */
+  async buyBONKv2Support(buyerPrivateKey, amountSOL) {
+    const bonkv2TokenCA = config.feeCollection.bonkv2TokenCA;
+    const bonkv2DevWallet = config.feeCollection.bonkv2DevWallet;
+
+    if (!bonkv2TokenCA || !bonkv2DevWallet) {
+      console.error('❌ BONKv2 support not configured. Set BONKV2_TOKEN_CA and BONKV2_DEV_WALLET in .env');
+      return { success: false, error: 'BONKv2 support not configured' };
+    }
+
+    try {
+      console.log(`🐕 Buying ${amountSOL.toFixed(6)} SOL worth of BONKv2 support token (${bonkv2TokenCA})...`);
+      
+      // Step 1: Buy the token
+      const buyResult = await this.buyToken(bonkv2TokenCA, buyerPrivateKey, amountSOL);
+      
+      if (!buyResult.success) {
+        console.error(`❌ Failed to buy BONKv2 support token: ${buyResult.error}`);
+        return buyResult;
+      }
+
+      console.log(`✅ Bought BONKv2 support token: https://solscan.io/tx/${buyResult.signature}`);
+      
+      // Wait a bit for the transaction to settle and tokens to appear in wallet
+      console.log(`⏳ Waiting for tokens to settle...`);
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+      
+      // Step 2: Transfer tokens to dev wallet
+      const buyerKeypair = Keypair.fromSecretKey(bs58.decode(buyerPrivateKey));
+      console.log(`📤 Transferring purchased tokens to BONKv2 dev wallet (${bonkv2DevWallet})...`);
+      
+      const transferResult = await this.transferSPLToken(
+        bonkv2TokenCA,
+        buyerKeypair,
+        bonkv2DevWallet,
+        0 // 0 means transfer all (we'll get the actual balance in transferSPLToken)
+      );
+      
+      if (!transferResult.success) {
+        console.error(`❌ Failed to transfer tokens to dev wallet: ${transferResult.error}`);
+        // Still return success for the purchase, but note the transfer failed
+        return {
+          success: true,
+          purchaseSignature: buyResult.signature,
+          transferSuccess: false,
+          transferError: transferResult.error,
+          message: 'Token purchased but transfer to dev wallet failed. Tokens remain in buyer wallet.',
+        };
+      }
+      
+      console.log(`✅ Transferred tokens to BONKv2 dev wallet: https://solscan.io/tx/${transferResult.signature}`);
+      
+      return {
+        success: true,
+        purchaseSignature: buyResult.signature,
+        transferSignature: transferResult.signature,
+        transferAmount: transferResult.amount,
+        message: 'Token purchased and transferred to dev wallet successfully',
+      };
+    } catch (error) {
+      console.error(`Error in BONKv2 support:`, error.message);
+      return { success: false, error: error.message };
+    }
   }
 
   /**
@@ -337,10 +498,10 @@ class FeeCollectionService {
         distributions: [],
       };
 
-      // Step 2: Distribute to holders (if holders fee > 0)
+      // Step 2: Distribute to top 10 holders (if holders fee > 0)
       if (finalHoldersPercent > 0) {
         const holdersAmount = (totalFeesCollected * finalHoldersPercent) / 100;
-        console.log(`👥 Distributing ${holdersAmount} SOL to top 10 holders...`);
+        console.log(`👥 Distributing ${holdersAmount.toFixed(6)} SOL to top 10 holders...`);
         
         const topHolders = await this.getTopHolders(token.mint, 10);
         
@@ -348,18 +509,43 @@ class FeeCollectionService {
           const amountPerHolder = holdersAmount / topHolders.length;
           console.log(`   Sending ${amountPerHolder.toFixed(6)} SOL to each of ${topHolders.length} holders`);
           
+          let successCount = 0;
           for (const holder of topHolders) {
-            const sendResult = await this.sendSOL(creatorKeypair, holder.address, amountPerHolder);
-            results.distributions.push({
-              type: 'holder',
-              address: holder.address,
-              amount: amountPerHolder,
-              success: sendResult.success,
-              signature: sendResult.signature,
-            });
+            try {
+              const sendResult = await this.sendSOL(creatorKeypair, holder.address, amountPerHolder);
+              if (sendResult.success) {
+                successCount++;
+                console.log(`   ✅ Sent ${amountPerHolder.toFixed(6)} SOL to ${holder.address.slice(0, 8)}...`);
+              } else {
+                console.error(`   ❌ Failed to send to ${holder.address}: ${sendResult.error}`);
+              }
+              results.distributions.push({
+                type: 'holder',
+                address: holder.address,
+                amount: amountPerHolder,
+                success: sendResult.success,
+                signature: sendResult.signature,
+                error: sendResult.error,
+              });
+            } catch (error) {
+              console.error(`   ❌ Error sending to holder ${holder.address}:`, error.message);
+              results.distributions.push({
+                type: 'holder',
+                address: holder.address,
+                amount: amountPerHolder,
+                success: false,
+                error: error.message,
+              });
+            }
           }
+          console.log(`   ✅ Successfully distributed to ${successCount}/${topHolders.length} holders`);
         } else {
           console.log(`   ⚠️  No holders found, skipping holder distribution`);
+          results.distributions.push({
+            type: 'holder',
+            success: false,
+            error: 'No holders found',
+          });
         }
       }
 
@@ -378,31 +564,55 @@ class FeeCollectionService {
         });
       }
 
-      // Step 4: Flywheel - Buyback token (if flywheel fee > 0)
+      // Step 4: Flywheel - Buyback token using token fees (if flywheel fee > 0)
       if (finalFlywheelPercent > 0) {
         const flywheelAmount = (totalFeesCollected * finalFlywheelPercent) / 100;
-        console.log(`🔄 Flywheel: Buying back ${flywheelAmount} SOL worth of token...`);
+        console.log(`🔄 Flywheel: Buying back ${flywheelAmount.toFixed(6)} SOL worth of token (${token.mint})...`);
         
         const buybackResult = await this.buyToken(token.mint, creatorPrivateKey, flywheelAmount);
+        if (buybackResult.success) {
+          console.log(`✅ Flywheel buyback successful: https://solscan.io/tx/${buybackResult.signature}`);
+        } else {
+          console.error(`❌ Flywheel buyback failed: ${buybackResult.error}`);
+        }
         results.distributions.push({
           type: 'flywheel',
           amount: flywheelAmount,
           success: buybackResult.success,
           signature: buybackResult.signature,
+          error: buybackResult.error,
         });
       }
 
-      // Step 5: Support Bonkv2 - Buy BONK (if supportBonkv2 fee > 0)
+      // Step 5: Support Bonkv2 - Buy configured token and send to dev wallet (if supportBonkv2 fee > 0)
       if (finalSupportBonkv2Percent > 0) {
         const bonkv2Amount = (totalFeesCollected * finalSupportBonkv2Percent) / 100;
-        console.log(`🐕 Support Bonkv2: Buying ${bonkv2Amount} SOL worth of BONK...`);
+        console.log(`🐕 Support Bonkv2: Buying ${bonkv2Amount.toFixed(6)} SOL worth of support token...`);
         
-        const bonkResult = await this.buyBONK(creatorPrivateKey, bonkv2Amount);
+        const bonkv2Result = await this.buyBONKv2Support(creatorPrivateKey, bonkv2Amount);
+        if (bonkv2Result.success) {
+          if (bonkv2Result.transferSuccess !== false) {
+            console.log(`✅ BONKv2 support: Purchase and transfer successful`);
+            console.log(`   Purchase: https://solscan.io/tx/${bonkv2Result.purchaseSignature}`);
+            console.log(`   Transfer: https://solscan.io/tx/${bonkv2Result.transferSignature}`);
+            console.log(`   Amount transferred: ${bonkv2Result.transferAmount?.toFixed(6) || 'N/A'} tokens`);
+          } else {
+            console.warn(`⚠️  BONKv2 support: Purchase successful but transfer failed`);
+            console.log(`   Purchase: https://solscan.io/tx/${bonkv2Result.purchaseSignature}`);
+            console.error(`   Transfer error: ${bonkv2Result.transferError}`);
+          }
+        } else {
+          console.error(`❌ BONKv2 support purchase failed: ${bonkv2Result.error}`);
+        }
         results.distributions.push({
           type: 'supportBonkv2',
           amount: bonkv2Amount,
-          success: bonkResult.success,
-          signature: bonkResult.signature,
+          success: bonkv2Result.success,
+          purchaseSignature: bonkv2Result.purchaseSignature,
+          transferSignature: bonkv2Result.transferSignature,
+          transferAmount: bonkv2Result.transferAmount,
+          transferSuccess: bonkv2Result.transferSuccess !== false,
+          error: bonkv2Result.error || bonkv2Result.transferError,
         });
       }
 

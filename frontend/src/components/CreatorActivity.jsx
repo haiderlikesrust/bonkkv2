@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { ExternalLink, Wallet, TrendingUp, Activity } from 'lucide-react';
 import { getCreatorActivity } from '../services/api.js';
 
-export default function CreatorActivity({ mint }) {
+export default function CreatorActivity({ mint, loadDelay = 0 }) {
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (mint) {
-      loadActivity();
+      // Load with delay to prevent concurrent RPC calls
+      const timer = setTimeout(() => {
+        loadActivity();
+      }, loadDelay);
+      return () => clearTimeout(timer);
     }
-  }, [mint]);
+  }, [mint, loadDelay]);
 
   const loadActivity = async () => {
     try {

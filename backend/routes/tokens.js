@@ -1,8 +1,17 @@
 import express from 'express';
+import { Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pumpPortalService from '../services/pumpportal.js';
 import tokenService from '../services/token.js';
 import transparencyService from '../services/transparency.js';
+import vanityMintPool from '../services/vanityMintPool.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -127,6 +136,139 @@ router.get('/my', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error in /tokens/my:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch user tokens' });
+  }
+});
+
+/**
+ * GET /api/tokens/vanity
+ * Get a vanity mint from the pool (instant, like pump.fun)
+ * Reads directly from database or JSON file
+ * NOTE: Must be BEFORE /:mint route to avoid route conflict
+ */
+router.get('/vanity', authenticate, async (req, res) => {
+  try {
+    console.log('[VANITY API] Request received from user:', req.user.userId);
+    
+    let vanityMint = null;
+    let secretKeyBase58 = null;
+    let mintAddress = null;
+    
+    // Try to get from database pool first
+    try {
+      vanityMint = vanityMintPool.getVanityMint();
+      if (vanityMint && vanityMint.secretKeyBase58) {
+        secretKeyBase58 = vanityMint.secretKeyBase58;
+        mintAddress = vanityMint.mintAddress;
+        console.log('[VANITY API] ✅ Retrieved from database pool:', mintAddress);
+      }
+    } catch (dbError) {
+      console.log('[VANITY API] Database pool error, trying JSON file...', dbError.message);
+    }
+    
+    // If database pool is empty, read directly from JSON file
+    if (!secretKeyBase58) {
+      const jsonFile = path.join(__dirname, '../../vanity-mints-pool.json');
+      
+      if (fs.existsSync(jsonFile)) {
+        console.log('[VANITY API] Reading from JSON file...');
+        const fileContent = fs.readFileSync(jsonFile, 'utf8');
+        const data = JSON.parse(fileContent);
+        
+        if (data.mints && data.mints.length > 0) {
+          // Get first mint from JSON
+          const mint = data.mints[0];
+          
+          // Validate secret key format
+          if (!mint.secretKey || !Array.isArray(mint.secretKey)) {
+            console.error('[VANITY API] Invalid secret key format in JSON');
+            throw new Error('Invalid secret key format in JSON file');
+          }
+          
+          const secretKeyBytes = new Uint8Array(mint.secretKey);
+          
+          // Handle both 32-byte (private key only) and 64-byte (full keypair) formats
+          let fullSecretKey;
+          if (secretKeyBytes.length === 32) {
+            // Only private key (seed) provided - need to derive full 64-byte keypair secret key
+            console.log('[VANITY API] Secret key is 32 bytes, deriving full keypair secret key...');
+            
+            // Use tweetnacl (which Solana uses internally) to derive keypair from seed
+            const nacl = await import('tweetnacl');
+            const keyPair = nacl.sign.keyPair.fromSeed(secretKeyBytes);
+            
+            // Solana's secret key format is [32-byte seed + 32-byte public key] = 64 bytes
+            fullSecretKey = new Uint8Array(64);
+            fullSecretKey.set(secretKeyBytes, 0); // First 32 bytes: seed
+            fullSecretKey.set(keyPair.publicKey, 32); // Last 32 bytes: public key
+            
+            // Validate the keypair matches the stored mint address
+            const keypair = Keypair.fromSecretKey(fullSecretKey);
+            const derivedAddress = keypair.publicKey.toBase58();
+            if (derivedAddress !== mint.mintAddress) {
+              console.error(`[VANITY API] Secret key does not match mint address. Derived: ${derivedAddress}, Expected: ${mint.mintAddress}`);
+              throw new Error('Secret key does not match mint address');
+            }
+          } else if (secretKeyBytes.length === 64) {
+            // Full 64-byte keypair secret key
+            fullSecretKey = secretKeyBytes;
+            
+            // Validate the keypair can be created
+            try {
+              const testKeypair = Keypair.fromSecretKey(fullSecretKey);
+              if (testKeypair.publicKey.toBase58() !== mint.mintAddress) {
+                console.error('[VANITY API] Secret key does not match mint address');
+                throw new Error('Secret key does not match mint address');
+              }
+            } catch (error) {
+              console.error('[VANITY API] Failed to validate keypair:', error.message);
+              throw new Error(`Invalid secret key: ${error.message}`);
+            }
+          } else {
+            console.error(`[VANITY API] Invalid secret key size: ${secretKeyBytes.length} bytes (expected 32 or 64)`);
+            throw new Error(`Invalid secret key size: ${secretKeyBytes.length} bytes (expected 32 or 64)`);
+          }
+          
+          secretKeyBase58 = bs58.encode(fullSecretKey);
+          mintAddress = mint.mintAddress;
+          
+          console.log('[VANITY API] ✅ Retrieved from JSON file:', mintAddress);
+        }
+      }
+    }
+    
+    if (!secretKeyBase58 || !mintAddress) {
+      return res.status(404).json({
+        success: false,
+        error: 'No vanity mints available',
+        details: 'Pool is empty and JSON file not found. Run: npm run vanity-mints-cuda',
+      });
+    }
+    
+    const secretKey = String(secretKeyBase58);
+    
+    if (!secretKey || secretKey.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to encode secret key',
+      });
+    }
+    
+    console.log('[VANITY API] Returning mint:', mintAddress);
+    console.log('[VANITY API] Secret key length:', secretKey.length);
+    
+    res.json({
+      success: true,
+      mintAddress: mintAddress,
+      secretKey: secretKey,
+      fromPool: !!vanityMint,
+    });
+  } catch (error) {
+    console.error('[VANITY API] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get vanity mint',
+      details: error.message,
+    });
   }
 });
 
@@ -281,7 +423,7 @@ router.put('/:mint/fees', authenticate, async (req, res) => {
 
 /**
  * POST /api/tokens/upload-image
- * Upload image to IPFS (required before token creation)
+ * Upload image to IPFS (required before token creation) AND save locally
  */
 router.post('/upload-image', authenticate, async (req, res) => {
   try {
@@ -301,7 +443,24 @@ router.post('/upload-image', authenticate, async (req, res) => {
     }
     const imageBuffer = Buffer.from(base64Data, 'base64');
 
-    // Upload to IPFS
+    // Save image locally first
+    const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'images');
+    // Ensure uploads directory exists
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Generate unique filename
+    const fileExtension = fileName?.split('.').pop() || 'png';
+    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const localFilePath = path.join(uploadsDir, uniqueFileName);
+    
+    // Save image to local storage
+    fs.writeFileSync(localFilePath, imageBuffer);
+    const localImageUrl = `/uploads/images/${uniqueFileName}`;
+    console.log('✅ Image saved locally:', localImageUrl);
+
+    // Also upload to IPFS (still needed for PumpPortal)
     const ipfsResult = await pumpPortalService.uploadImageToIPFS(imageBuffer, fileName || 'token.png', {
       name,
       symbol,
@@ -316,7 +475,8 @@ router.post('/upload-image', authenticate, async (req, res) => {
       success: true,
       metadataUri: ipfsResult.metadataUri,
       metadata: ipfsResult.metadata,
-      message: 'Image uploaded to IPFS successfully',
+      imageUrl: localImageUrl, // Return local image URL (served from our system)
+      message: 'Image uploaded to IPFS and saved locally successfully',
     });
   } catch (error) {
     console.error('Upload image error:', error);
@@ -356,10 +516,24 @@ router.post('/create', authenticate, async (req, res) => {
       });
     }
 
-    // Note: For token creation, the mint address should be the public key of the mint keypair
-    // If mint is provided as secret key (base58), we need to derive the public key
-    // For now, we'll use the mint as-is (it should be the mint address/public key)
-    const mintAddress = mint; // Assume mint is the public key/mint address
+    // The mint parameter is the secret key in base58 format (from pumpportal requirement)
+    // We need to derive the public key (mint address) from it for database storage
+    let mintAddress;
+    try {
+      // Try to decode as secret key (base58) and derive public key
+      console.log('[CREATE TOKEN] Attempting to decode mint secret key, length:', mint?.length);
+      const secretKey = bs58.decode(mint);
+      console.log('[CREATE TOKEN] Decoded secret key length:', secretKey.length);
+      const mintKeypair = Keypair.fromSecretKey(secretKey);
+      mintAddress = mintKeypair.publicKey.toBase58();
+      console.log('[CREATE TOKEN] Derived mint address from secret key:', mintAddress);
+    } catch (error) {
+      // If decoding fails, assume mint is already the public key (backward compatibility)
+      console.error('[CREATE TOKEN] Error decoding mint secret key:', error.message);
+      console.error('[CREATE TOKEN] Error stack:', error.stack);
+      console.warn('[CREATE TOKEN] Could not decode mint as secret key, using as public key');
+      mintAddress = mint;
+    }
 
     // Store token in our database FIRST
     // If storage fails, we should NOT create the transaction
@@ -386,8 +560,8 @@ router.post('/create', authenticate, async (req, res) => {
       });
       console.log('✅ Token stored successfully in database:', storedToken.mint);
     } catch (dbError) {
-      // If token already exists, that's okay (might be retry) - fetch the existing token
-      if (dbError.message.includes('already exists')) {
+      // If token already exists, check if it's the same creator trying to reuse
+      if (dbError.message.includes('already exists') || dbError.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         console.log('ℹ️ Token already exists in database:', mintAddress);
         storedToken = await tokenService.findByMint(mintAddress);
         if (!storedToken) {
@@ -395,6 +569,27 @@ router.post('/create', authenticate, async (req, res) => {
             error: 'Token exists but could not be retrieved from database',
           });
         }
+        
+        // Check if this is the same creator
+        if (storedToken.creatorUserId.toString() !== req.user.userId.toString()) {
+          return res.status(409).json({
+            error: 'This mint address is already used by another creator',
+            details: 'Each token must have a unique mint address. The vanity wallet you are using has already been used to create a token.',
+          });
+        }
+        
+        // Same creator trying to reuse - this might be intentional (retry) or they want to create a new token
+        // Since we can't create a new token with the same mint, return an error
+        // IMPORTANT: Don't proceed to pumpportal if token already exists
+        return res.status(409).json({
+          error: 'Token with this mint address already exists',
+          details: 'You have already created a token with this mint address. Each token must have a unique mint address. If you want to create a new token, you need to use a different mint keypair.',
+          existingToken: {
+            mint: storedToken.mint,
+            name: storedToken.name,
+            symbol: storedToken.symbol,
+          },
+        });
       } else {
         // CRITICAL: If storage fails, DO NOT create transaction
         console.error('❌ CRITICAL ERROR: Failed to store token in database!');
@@ -415,38 +610,94 @@ router.post('/create', authenticate, async (req, res) => {
 
     // Only proceed with transaction creation if token was successfully stored
     // Get create transaction (returns serialized transaction)
-    const transactionBuffer = await pumpPortalService.getCreateTokenTransaction({
-      publicKey,
-      tokenMetadata: {
-        name: tokenMetadata.name,
-        symbol: tokenMetadata.symbol,
-        uri: tokenMetadata.uri,
-      },
-      mint,
-      amount,
-      denominatedInSol,
-      slippage,
-      priorityFee,
-      pool,
-      isMayhemMode,
-      quoteMint,
-    });
+    // Note: pumpportal expects the mint public key (address), not the secret key
+    // The secret key is used later to sign the transaction on the client side
+    console.log('[CREATE TOKEN] Calling pumpportal API with mint address:', mintAddress);
+    try {
+      const transactionBuffer = await pumpPortalService.getCreateTokenTransaction({
+        publicKey,
+        tokenMetadata: {
+          name: tokenMetadata.name,
+          symbol: tokenMetadata.symbol,
+          uri: tokenMetadata.uri,
+        },
+        mint: mintAddress, // Send mint public key (address) to pumpportal
+        amount,
+        denominatedInSol,
+        slippage,
+        priorityFee,
+        pool,
+        isMayhemMode,
+        quoteMint,
+      });
+      console.log('[CREATE TOKEN] Successfully received transaction from pumpportal');
 
-    // Convert to base64 for JSON response
-    const transactionBase64 = Buffer.from(transactionBuffer).toString('base64');
+      // Convert to base64 for JSON response
+      const transactionBase64 = Buffer.from(transactionBuffer).toString('base64');
 
-    res.json({
-      success: true,
-      transaction: transactionBase64,
-      mint: mint,
-      message: 'Token stored and transaction ready to sign and send',
-      instructions: 'Deserialize this transaction, sign it with your wallet, and send it to Solana RPC',
-    });
+      res.json({
+        success: true,
+        transaction: transactionBase64,
+        mint: mint, // Return the secret key (base58) to frontend for signing
+        mintAddress: mintAddress, // Also return the public key for reference
+        message: 'Token stored and transaction ready to sign and send',
+        instructions: 'Deserialize this transaction, sign it with your wallet, and send it to Solana RPC',
+      });
+    } catch (pumpportalError) {
+      console.error('[CREATE TOKEN] Error calling pumpportal API:', pumpportalError.message);
+      console.error('[CREATE TOKEN] Pumpportal error response:', pumpportalError.response?.data);
+      console.error('[CREATE TOKEN] Pumpportal error status:', pumpportalError.response?.status);
+      
+      // Try to extract error message from response
+      let errorMessage = pumpportalError.message || 'Failed to create token transaction';
+      if (pumpportalError.response?.data) {
+        try {
+          if (pumpportalError.response.data instanceof ArrayBuffer) {
+            const decoder = new TextDecoder();
+            errorMessage = decoder.decode(pumpportalError.response.data);
+          } else if (Buffer.isBuffer(pumpportalError.response.data)) {
+            errorMessage = pumpportalError.response.data.toString();
+          } else if (typeof pumpportalError.response.data === 'object') {
+            errorMessage = JSON.stringify(pumpportalError.response.data);
+          } else {
+            errorMessage = pumpportalError.response.data.toString();
+          }
+        } catch (parseError) {
+          console.error('[CREATE TOKEN] Could not parse pumpportal error:', parseError);
+        }
+      }
+      
+      throw new Error(`Pumpportal API error: ${errorMessage}`);
+    }
   } catch (error) {
     console.error('Create token error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error response:', error.response?.data);
+    
+    // Provide more detailed error information
+    let errorMessage = error.message || 'Failed to create token transaction';
+    let errorDetails = error.response?.data || error.stack;
+    
+    // If it's an axios error from pumpportal, extract more details
+    if (error.response) {
+      try {
+        // Try to parse the response if it's text/buffer
+        if (error.response.data instanceof ArrayBuffer) {
+          const decoder = new TextDecoder();
+          errorDetails = decoder.decode(error.response.data);
+        } else if (Buffer.isBuffer(error.response.data)) {
+          errorDetails = error.response.data.toString();
+        } else {
+          errorDetails = error.response.data;
+        }
+      } catch (parseError) {
+        errorDetails = 'Could not parse error response';
+      }
+    }
+    
     res.status(500).json({ 
-      error: error.message || 'Failed to create token transaction',
-      details: error.response?.data,
+      error: errorMessage,
+      details: errorDetails,
     });
   }
 });
@@ -668,7 +919,14 @@ router.get('/:mint/transactions', optionalAuth, async (req, res) => {
     const { mint } = req.params;
     const limit = parseInt(req.query.limit) || 50;
 
-    const transactions = await transparencyService.getTokenTransactionHistory(mint, limit);
+    let transactions;
+    try {
+      transactions = await transparencyService.getTokenTransactionHistory(mint, limit);
+    } catch (error) {
+      console.error('Error fetching token transactions:', error.message);
+      // Return empty array if fetch fails (token might not exist on-chain yet)
+      transactions = [];
+    }
 
     res.json({
       success: true,
@@ -734,11 +992,37 @@ router.get('/:mint/creator-activity', optionalAuth, async (req, res) => {
 
     const creatorWallet = token.creatorWallet;
     
-    // Get wallet stats
-    const walletStats = await transparencyService.getWalletStats(creatorWallet);
+    if (!creatorWallet) {
+      return res.status(400).json({ error: 'Token has no creator wallet' });
+    }
     
-    // Get recent transactions
-    const recentTxs = await transparencyService.getWalletTransactionHistory(creatorWallet, 20);
+    // Get wallet stats (with error handling)
+    let walletStats;
+    let recentTxs = [];
+    
+    try {
+      walletStats = await transparencyService.getWalletStats(creatorWallet);
+    } catch (error) {
+      console.error('Error fetching wallet stats:', error.message);
+      // Return default stats if fetch fails
+      walletStats = {
+        address: creatorWallet,
+        balance: 0,
+        balanceLamports: 0,
+        transactionCount: 0,
+        solscanUrl: `https://solscan.io/account/${creatorWallet}`,
+        error: error.message,
+      };
+    }
+    
+    // Get recent transactions (with error handling)
+    try {
+      recentTxs = await transparencyService.getWalletTransactionHistory(creatorWallet, 20);
+    } catch (error) {
+      console.error('Error fetching wallet transactions:', error.message);
+      // Return empty array if fetch fails
+      recentTxs = [];
+    }
 
     res.json({
       success: true,
@@ -758,6 +1042,50 @@ router.get('/:mint/creator-activity', optionalAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching creator activity:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch creator activity' });
+  }
+});
+
+/**
+ * POST /api/rpc/send-transaction
+ * Proxy RPC call to send transaction
+ */
+router.post('/rpc/send-transaction', authenticate, async (req, res) => {
+  try {
+    const { transaction } = req.body;
+    
+    if (!transaction) {
+      return res.status(400).json({ error: 'Transaction is required' });
+    }
+
+    // Import Connection here to avoid circular dependencies
+    const { Connection } = await import('@solana/web3.js');
+    const { config } = await import('../config/config.js');
+    
+    const connection = new Connection(config.solana.rpcUrl, {
+      commitment: 'confirmed',
+      httpHeaders: config.solana.heliusApiKey ? {
+        'x-api-key': config.solana.heliusApiKey,
+      } : undefined,
+    });
+
+    // Convert base64 transaction back to buffer
+    const transactionBuffer = Buffer.from(transaction, 'base64');
+    const tx = (await import('@solana/web3.js')).VersionedTransaction.deserialize(
+      new Uint8Array(transactionBuffer)
+    );
+
+    // Send transaction
+    const signature = await connection.sendTransaction(tx);
+
+    res.json({
+      success: true,
+      signature,
+    });
+  } catch (error) {
+    console.error('Error sending transaction:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to send transaction',
+    });
   }
 });
 
@@ -798,5 +1126,6 @@ router.get('/:mint/fee-history', optionalAuth, async (req, res) => {
     res.status(500).json({ error: error.message || 'Failed to fetch fee history' });
   }
 });
+
 
 export default router;

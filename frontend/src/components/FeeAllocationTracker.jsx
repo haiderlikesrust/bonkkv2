@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, Users, Zap, Gift } from 'lucide-react';
 import { getFeeHistory } from '../services/api.js';
 
-export default function FeeAllocationTracker({ mint }) {
+export default function FeeAllocationTracker({ mint, loadDelay = 0 }) {
   const [feeData, setFeeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (mint) {
-      loadFeeData();
+      // Load with delay to prevent concurrent RPC calls
+      const timer = setTimeout(() => {
+        loadFeeData();
+      }, loadDelay);
+      return () => clearTimeout(timer);
     }
-  }, [mint]);
+  }, [mint, loadDelay]);
 
   const loadFeeData = async () => {
     try {

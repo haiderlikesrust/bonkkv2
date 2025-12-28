@@ -130,7 +130,7 @@ class PumpPortalService {
           symbol: params.tokenMetadata.symbol,
           uri: params.tokenMetadata.uri, // From IPFS upload
         },
-        mint: params.mint, // Base58 encoded mint keypair secret key
+        mint: params.mint, // Mint public key (address) - pumpportal uses this to create the token
         denominatedInSol: params.denominatedInSol || 'true',
         amount: params.amount, // Dev buy amount
         slippage: params.slippage || 10,
@@ -144,8 +144,33 @@ class PumpPortalService {
 
       return response.data; // Returns serialized transaction as ArrayBuffer
     } catch (error) {
-      console.error('Error getting create token transaction:', error.response?.data || error.message);
-      throw error;
+      console.error('Error getting create token transaction:', error.message);
+      
+      // Try to decode error response if it's a buffer
+      let errorMessage = error.message;
+      if (error.response?.data) {
+        try {
+          if (error.response.data instanceof ArrayBuffer) {
+            const decoder = new TextDecoder();
+            errorMessage = decoder.decode(error.response.data);
+          } else if (Buffer.isBuffer(error.response.data)) {
+            errorMessage = error.response.data.toString();
+          } else if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          } else {
+            errorMessage = JSON.stringify(error.response.data);
+          }
+          console.error('Pumpportal error response:', errorMessage);
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+        }
+      }
+      
+      // Create a more descriptive error
+      const enhancedError = new Error(`Pumpportal API error: ${errorMessage}`);
+      enhancedError.response = error.response;
+      enhancedError.status = error.response?.status;
+      throw enhancedError;
     }
   }
 

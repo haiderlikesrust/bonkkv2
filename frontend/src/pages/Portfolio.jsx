@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet, Edit, TrendingUp, Copy, Check, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { getToken } from '../services/api.js';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
+import { getSolanaConnection } from '../utils/solana.js';
 import { useToast } from '../hooks/useToast.js';
 import ToastContainer from '../components/ToastContainer.jsx';
 import FeeDistributionModal from '../components/FeeDistributionModal.jsx';
+import { getImageUrl } from '../utils/imageUrl.js';
 
 export default function Portfolio() {
   const { user } = useAuth();
@@ -81,10 +83,7 @@ export default function Portfolio() {
   const fetchBalance = async (address) => {
     try {
       setLoadingBalance(true);
-      const connection = new Connection(
-        import.meta.env.VITE_SOLANA_RPC || 'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
+      const connection = getSolanaConnection();
       const publicKey = new PublicKey(address);
       const balanceLamports = await connection.getBalance(publicKey);
       const balanceSOL = balanceLamports / 1e9;
@@ -235,7 +234,7 @@ export default function Portfolio() {
                       {/* Token Icon */}
                       <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center text-2xl">
                         {token.imageUrl ? (
-                          <img src={token.imageUrl} alt={token.name} className="w-full h-full rounded-xl object-cover" />
+                          <img src={getImageUrl(token.imageUrl)} alt={token.name} className="w-full h-full rounded-xl object-cover" />
                         ) : (
                           token.name?.charAt(0).toUpperCase() || 'T'
                         )}

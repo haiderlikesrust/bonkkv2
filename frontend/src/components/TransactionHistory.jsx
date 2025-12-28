@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Clock, ExternalLink, CheckCircle, XCircle } from 'lucide-react';
 import { getTokenTransactions } from '../services/api.js';
 
-export default function TransactionHistory({ mint }) {
+export default function TransactionHistory({ mint, loadDelay = 0 }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (mint) {
-      loadTransactions();
+      // Load with delay to prevent concurrent RPC calls
+      const timer = setTimeout(() => {
+        loadTransactions();
+      }, loadDelay);
+      return () => clearTimeout(timer);
     }
-  }, [mint]);
+  }, [mint, loadDelay]);
 
   const loadTransactions = async () => {
     try {
