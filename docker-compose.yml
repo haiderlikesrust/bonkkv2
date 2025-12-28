@@ -16,7 +16,6 @@ services:
       - .env
     volumes:
       - ./data:/app/data
-      - ./uploads:/app/uploads
       # Mount vanity mints pool file (must exist on host)
       - ./vanity-mints-pool.json:/app/vanity-mints-pool.json:ro
     networks:
