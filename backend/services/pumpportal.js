@@ -181,7 +181,9 @@ class PumpPortalService {
    */
   async getCoinInfo(mintAddress) {
     try {
-      const response = await axios.get(`${PUMP_FUN_API_BASE}/coins/${mintAddress}`, {
+      // Use proxy API for better reliability and image URI access
+      const proxyUrl = `https://pump-proxy-server.zoclouds.net/api/pump/coins/${mintAddress}`;
+      const response = await axios.get(proxyUrl, {
         timeout: 10000,
       });
       return response.data;

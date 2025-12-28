@@ -30,32 +30,40 @@ router.get('/new', optionalAuth, async (req, res) => {
     
     console.log(`[GET /api/tokens/new] Found ${tokens.length} tokens (limit: ${limit}, offset: ${offset})`);
 
-    // Update market cap from Pump.fun API for each token (in background, don't wait)
-    tokens.forEach(async (token) => {
-      try {
-        const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
-        if (coinInfo.usd_market_cap !== undefined) {
-          await tokenService.updateToken(token.mint, {
-            marketCap: coinInfo.usd_market_cap || 0,
-          });
+    // Fetch images from proxy API for each token
+    const tokensWithImages = await Promise.all(
+      tokens.map(async (token) => {
+        let imageUrl = token.imageUrl; // Fallback to DB image if proxy fails
+        try {
+          const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
+          if (coinInfo.image_uri) {
+            imageUrl = coinInfo.image_uri; // Always use proxy API image
+          }
+          // Update market cap in background
+          if (coinInfo.usd_market_cap !== undefined) {
+            tokenService.updateToken(token.mint, {
+              marketCap: coinInfo.usd_market_cap || 0,
+            }).catch(err => console.debug(`Failed to update market cap for ${token.mint}:`, err.message));
+          }
+        } catch (error) {
+          // Silently fail - use DB image as fallback
+          console.debug(`Failed to fetch image from proxy for ${token.mint}:`, error.message);
         }
-      } catch (error) {
-        // Silently fail - market cap update is not critical
-        console.debug(`Failed to update market cap for ${token.mint}:`, error.message);
-      }
-    });
+        return {
+          mint: token.mint,
+          name: token.name,
+          symbol: token.symbol,
+          marketCap: token.marketCap,
+          progress: token.progress,
+          createdAt: token.createdAtDisplay,
+          imageUrl: imageUrl,
+        };
+      })
+    );
 
     res.json({
       success: true,
-      tokens: tokens.map(token => ({
-        mint: token.mint,
-        name: token.name,
-        symbol: token.symbol,
-        marketCap: token.marketCap,
-        progress: token.progress,
-        createdAt: token.createdAtDisplay,
-        imageUrl: token.imageUrl,
-      })),
+      tokens: tokensWithImages,
     });
   } catch (error) {
     console.error('Error in /tokens/new:', error);
@@ -95,43 +103,42 @@ router.get('/my', authenticate, async (req, res) => {
     const tokens = await tokenService.getTokensByCreator(userId);
     console.log(`[GET /api/tokens/my] Found ${tokens.length} tokens for user ${userId}`);
 
-    // Update market cap and image from Pump.fun API for each token (in background)
-    tokens.forEach(async (token) => {
-      try {
-        const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
-        const updates = {};
-        
-        if (coinInfo.usd_market_cap !== undefined) {
-          updates.marketCap = coinInfo.usd_market_cap || 0;
+    // Fetch images from proxy API for each token
+    const tokensWithImages = await Promise.all(
+      tokens.map(async (token) => {
+        let imageUrl = token.imageUrl; // Fallback to DB image if proxy fails
+        try {
+          const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
+          if (coinInfo.image_uri) {
+            imageUrl = coinInfo.image_uri; // Always use proxy API image
+          }
+          // Update market cap in background
+          if (coinInfo.usd_market_cap !== undefined) {
+            tokenService.updateToken(token.mint, {
+              marketCap: coinInfo.usd_market_cap || 0,
+            }).catch(err => console.debug(`Failed to update market cap for ${token.mint}:`, err.message));
+          }
+        } catch (error) {
+          // Silently fail - use DB image as fallback
+          console.debug(`Failed to fetch image from proxy for ${token.mint}:`, error.message);
         }
-        
-        // Save image if we don't have one but Pump.fun has one
-        if (coinInfo.image_uri && !token.imageUrl) {
-          updates.imageUrl = coinInfo.image_uri;
-        }
-        
-        if (Object.keys(updates).length > 0) {
-          await tokenService.updateToken(token.mint, updates);
-        }
-      } catch (error) {
-        // Silently fail - updates are not critical
-        console.debug(`Failed to update token data for ${token.mint}:`, error.message);
-      }
-    });
+        return {
+          id: token.id,
+          mint: token.mint,
+          name: token.name,
+          symbol: token.symbol,
+          marketCap: token.marketCap,
+          progress: token.progress,
+          createdAt: token.createdAtDisplay,
+          imageUrl: imageUrl,
+          feeDistribution: token.feeDistribution,
+        };
+      })
+    );
 
     res.json({
       success: true,
-      tokens: tokens.map(token => ({
-        id: token.id,
-        mint: token.mint,
-        name: token.name,
-        symbol: token.symbol,
-        marketCap: token.marketCap,
-        progress: token.progress,
-        createdAt: token.createdAtDisplay,
-        imageUrl: token.imageUrl,
-        feeDistribution: token.feeDistribution,
-      })),
+      tokens: tokensWithImages,
     });
   } catch (error) {
     console.error('Error in /tokens/my:', error);
@@ -362,7 +369,18 @@ router.get('/:mint', optionalAuth, async (req, res) => {
       }
     }
 
-    // Always use saved imageUrl from our database (token.imageUrl comes from mapRowToToken which uses row.image_url)
+    // Always fetch image from proxy API, even if token is in our DB
+    let imageUrl = token.imageUrl; // Fallback to DB image if proxy fails
+    try {
+      const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
+      if (coinInfo.image_uri) {
+        imageUrl = coinInfo.image_uri; // Always use proxy API image
+      }
+    } catch (error) {
+      // Silently fail - use DB image as fallback
+      console.debug(`Failed to fetch image from proxy for ${token.mint}:`, error.message);
+    }
+
     res.json({
       success: true,
       token: {
@@ -371,7 +389,7 @@ router.get('/:mint', optionalAuth, async (req, res) => {
         name: token.name,
         symbol: token.symbol,
         description: token.description,
-        imageUrl: token.imageUrl, // This will be from our DB (saved image) if token exists in DB
+        imageUrl: imageUrl, // Always from proxy API (or DB fallback)
         metadataUri: token.metadataUri,
         creatorWallet: token.creatorWallet,
         marketCap: token.marketCap,
