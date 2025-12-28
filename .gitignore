@@ -7,6 +7,8 @@ vanity-wallet.env
 *.json
 !package.json
 !package-lock.json
+!vanity-mints-pool.json
+!frontend/public/vanity-mints-pool.json
 vanity-keypair.json
 
 # Database
