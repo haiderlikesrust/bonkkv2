@@ -40,7 +40,9 @@ class VanityMintPoolService {
    */
   loadPreGeneratedMints() {
     if (!fs.existsSync(PRE_GENERATED_FILE)) {
-      console.log('ℹ️  No pre-generated vanity mints file found. Run: npm run vanity-mints-gpu');
+      console.log(`ℹ️  No pre-generated vanity mints file found at: ${PRE_GENERATED_FILE}`);
+      console.log('   Run: npm run vanity-mints-gpu to generate mints');
+      console.log('   Or ensure the file is mounted/copied in Docker');
       return;
     }
 

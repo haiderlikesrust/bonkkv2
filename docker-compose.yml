@@ -16,6 +16,8 @@ services:
       - .env
     volumes:
       - ./data:/app/data
+      # Mount vanity mints pool file (must exist on host)
+      - ./vanity-mints-pool.json:/app/vanity-mints-pool.json:ro
     networks:
       - bonkv2-network
     healthcheck:
