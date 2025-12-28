@@ -1,0 +1,802 @@
+import express from 'express';
+import pumpPortalService from '../services/pumpportal.js';
+import tokenService from '../services/token.js';
+import transparencyService from '../services/transparency.js';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
+
+const router = express.Router();
+
+/**
+ * GET /api/tokens/new
+ * Get new tokens created on our platform
+ * Market cap is updated from Pump.fun API if available
+ */
+router.get('/new', optionalAuth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    // Get tokens from our database (only tokens created on our platform)
+    const tokens = await tokenService.getAllTokens(limit, offset);
+    
+    console.log(`[GET /api/tokens/new] Found ${tokens.length} tokens (limit: ${limit}, offset: ${offset})`);
+
+    // Update market cap from Pump.fun API for each token (in background, don't wait)
+    tokens.forEach(async (token) => {
+      try {
+        const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
+        if (coinInfo.usd_market_cap !== undefined) {
+          await tokenService.updateToken(token.mint, {
+            marketCap: coinInfo.usd_market_cap || 0,
+          });
+        }
+      } catch (error) {
+        // Silently fail - market cap update is not critical
+        console.debug(`Failed to update market cap for ${token.mint}:`, error.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      tokens: tokens.map(token => ({
+        mint: token.mint,
+        name: token.name,
+        symbol: token.symbol,
+        marketCap: token.marketCap,
+        progress: token.progress,
+        createdAt: token.createdAtDisplay,
+        imageUrl: token.imageUrl,
+      })),
+    });
+  } catch (error) {
+    console.error('Error in /tokens/new:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch tokens' });
+  }
+});
+
+/**
+ * Helper function to calculate time ago
+ */
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffDays > 0) {
+    return `${diffDays}d ago`;
+  } else if (diffHours > 0) {
+    return `${diffHours}h ago`;
+  } else {
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    return `${diffMinutes}m ago`;
+  }
+}
+
+/**
+ * GET /api/tokens/my
+ * Get tokens created by current user
+ * NOTE: Must come before /:mint route to avoid route matching conflict
+ */
+router.get('/my', authenticate, async (req, res) => {
+  try {
+    const userId = parseInt(req.user.userId);
+    console.log(`[GET /api/tokens/my] Fetching tokens for user ID: ${userId}`);
+    
+    const tokens = await tokenService.getTokensByCreator(userId);
+    console.log(`[GET /api/tokens/my] Found ${tokens.length} tokens for user ${userId}`);
+
+    // Update market cap and image from Pump.fun API for each token (in background)
+    tokens.forEach(async (token) => {
+      try {
+        const coinInfo = await pumpPortalService.getCoinInfo(token.mint);
+        const updates = {};
+        
+        if (coinInfo.usd_market_cap !== undefined) {
+          updates.marketCap = coinInfo.usd_market_cap || 0;
+        }
+        
+        // Save image if we don't have one but Pump.fun has one
+        if (coinInfo.image_uri && !token.imageUrl) {
+          updates.imageUrl = coinInfo.image_uri;
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          await tokenService.updateToken(token.mint, updates);
+        }
+      } catch (error) {
+        // Silently fail - updates are not critical
+        console.debug(`Failed to update token data for ${token.mint}:`, error.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      tokens: tokens.map(token => ({
+        id: token.id,
+        mint: token.mint,
+        name: token.name,
+        symbol: token.symbol,
+        marketCap: token.marketCap,
+        progress: token.progress,
+        createdAt: token.createdAtDisplay,
+        imageUrl: token.imageUrl,
+        feeDistribution: token.feeDistribution,
+      })),
+    });
+  } catch (error) {
+    console.error('Error in /tokens/my:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch user tokens' });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint
+ * Get token data from our platform, or fetch from Pump.fun API if not found
+ */
+router.get('/:mint', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    let token = await tokenService.findByMint(mint);
+
+    // If not found in our database, fetch from Pump.fun API (but don't save to DB, just return)
+    if (!token) {
+      try {
+        const pumpFunData = await pumpPortalService.getCoinInfo(mint);
+        
+        // Safely parse dates from Pump.fun API
+        let createdAt, updatedAt, createdAtDisplay;
+        try {
+          if (pumpFunData.created_timestamp) {
+            createdAt = new Date(pumpFunData.created_timestamp);
+            if (isNaN(createdAt.getTime())) {
+              createdAt = new Date();
+            }
+          } else {
+            createdAt = new Date();
+          }
+          
+          if (pumpFunData.updated_at) {
+            updatedAt = new Date(pumpFunData.updated_at * 1000);
+            if (isNaN(updatedAt.getTime())) {
+              updatedAt = new Date();
+            }
+          } else {
+            updatedAt = new Date();
+          }
+          
+          createdAtDisplay = getTimeAgo(createdAt);
+        } catch (dateError) {
+          console.warn('Error parsing dates from Pump.fun data:', dateError);
+          createdAt = new Date();
+          updatedAt = new Date();
+          createdAtDisplay = 'Just now';
+        }
+        
+        // Convert Pump.fun API response to our token format
+        // Note: This token is not in our DB, so we use Pump.fun's image_uri
+        token = {
+          id: mint,
+          mint: pumpFunData.mint,
+          name: pumpFunData.name,
+          symbol: pumpFunData.symbol,
+          description: pumpFunData.description,
+          imageUrl: pumpFunData.image_uri || null, // Use Pump.fun image for tokens not in our DB
+          metadataUri: pumpFunData.metadata_uri,
+          creatorWallet: pumpFunData.creator,
+          twitter: pumpFunData.twitter,
+          telegram: null, // Pump.fun API doesn't provide telegram
+          website: pumpFunData.website,
+          marketCap: pumpFunData.usd_market_cap || 0,
+          progress: pumpFunData.complete ? 100 : ((pumpFunData.virtual_sol_reserves / pumpFunData.total_supply) * 100) || 0,
+          createdAt: createdAt.toISOString(),
+          updatedAt: updatedAt.toISOString(),
+          createdAtDisplay: createdAtDisplay,
+          feeDistribution: { holders: 50, dev: 50, flywheel: 0, supportBonkv2: 0 }, // Default for Pump.fun tokens
+          // Additional Pump.fun specific fields
+          complete: pumpFunData.complete,
+          usdMarketCap: pumpFunData.usd_market_cap,
+          lastTradeTimestamp: pumpFunData.last_trade_timestamp,
+          athMarketCap: pumpFunData.ath_market_cap,
+        };
+      } catch (pumpFunError) {
+        console.error('Error fetching from Pump.fun:', pumpFunError);
+        return res.status(404).json({ error: 'Token not found in our platform or on Pump.fun' });
+      }
+    }
+
+    // Always use saved imageUrl from our database (token.imageUrl comes from mapRowToToken which uses row.image_url)
+    res.json({
+      success: true,
+      token: {
+        id: token.id,
+        mint: token.mint,
+        name: token.name,
+        symbol: token.symbol,
+        description: token.description,
+        imageUrl: token.imageUrl, // This will be from our DB (saved image) if token exists in DB
+        metadataUri: token.metadataUri,
+        creatorWallet: token.creatorWallet,
+        marketCap: token.marketCap,
+        progress: token.progress,
+        twitter: token.twitter,
+        telegram: token.telegram,
+        website: token.website,
+        createdAt: token.createdAt,
+        createdAtDisplay: token.createdAtDisplay,
+        // Include additional fields if available (from Pump.fun)
+        ...(token.usdMarketCap && { usdMarketCap: token.usdMarketCap }),
+        ...(token.athMarketCap && { athMarketCap: token.athMarketCap }),
+        ...(token.complete !== undefined && { complete: token.complete }),
+      },
+    });
+  } catch (error) {
+    console.error('Error in /tokens/:mint:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch token' });
+  }
+});
+
+/**
+ * PUT /api/tokens/:mint/fees
+ * Update fee distribution for a token
+ */
+router.put('/:mint/fees', authenticate, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { feeDistribution } = req.body;
+
+    // Verify user owns this token
+    const token = await tokenService.findByMint(mint);
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    if (parseInt(token.creatorUserId) !== parseInt(req.user.userId)) {
+      return res.status(403).json({ error: 'You do not have permission to update this token' });
+    }
+
+    // Validate fee distribution
+    const { holders, dev, flywheel, supportBonkv2 } = feeDistribution;
+    const total = holders + dev + flywheel + supportBonkv2;
+    if (total !== 100) {
+      return res.status(400).json({ error: 'Fee distribution must total 100%' });
+    }
+
+    // Update token
+    const updatedToken = await tokenService.updateToken(mint, { feeDistribution });
+
+    res.json({
+      success: true,
+      token: {
+        mint: updatedToken.mint,
+        feeDistribution: updatedToken.feeDistribution,
+      },
+      message: 'Fee distribution updated successfully',
+    });
+  } catch (error) {
+    console.error('Error in /tokens/:mint/fees:', error);
+    res.status(500).json({ error: error.message || 'Failed to update fee distribution' });
+  }
+});
+
+/**
+ * POST /api/tokens/upload-image
+ * Upload image to IPFS (required before token creation)
+ */
+router.post('/upload-image', authenticate, async (req, res) => {
+  try {
+    // Note: In production, use multer or similar to handle file uploads
+    // This is a simplified version
+    const { imageBase64, fileName, name, symbol, description, twitter, telegram, website } = req.body;
+
+    if (!imageBase64 || !name || !symbol) {
+      return res.status(400).json({ error: 'Image, name, and symbol are required' });
+    }
+
+    // Convert base64 to buffer
+    // Handle both "data:image/png;base64,xxx" and raw base64
+    let base64Data = imageBase64;
+    if (imageBase64.includes(',')) {
+      base64Data = imageBase64.split(',')[1];
+    }
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    // Upload to IPFS
+    const ipfsResult = await pumpPortalService.uploadImageToIPFS(imageBuffer, fileName || 'token.png', {
+      name,
+      symbol,
+      description,
+      twitter,
+      telegram,
+      website,
+      showName: true,
+    });
+
+    res.json({
+      success: true,
+      metadataUri: ipfsResult.metadataUri,
+      metadata: ipfsResult.metadata,
+      message: 'Image uploaded to IPFS successfully',
+    });
+  } catch (error) {
+    console.error('Upload image error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error response:', error.response?.data);
+    res.status(500).json({ 
+      error: error.message || 'Failed to upload image',
+      details: error.response?.data || error.stack,
+    });
+  }
+});
+
+/**
+ * POST /api/tokens/create
+ * Get token creation transaction (Local API - returns transaction to sign)
+ * Also stores token in our database
+ * Docs: https://pumpportal.fun/creation
+ */
+router.post('/create', authenticate, async (req, res) => {
+  try {
+    const {
+      tokenMetadata, // { name, symbol, uri, description, twitter, telegram, website }
+      mint, // Base58 encoded mint keypair secret key (or mint address)
+      publicKey, // User's wallet public key
+      amount, // Dev buy amount
+      denominatedInSol = 'true',
+      slippage = 10,
+      priorityFee = 0.0005,
+      pool = 'pump',
+      isMayhemMode = 'false',
+      quoteMint, // For Bonk tokens
+    } = req.body;
+
+    if (!tokenMetadata || !mint || !publicKey || !amount) {
+      return res.status(400).json({ 
+        error: 'tokenMetadata, mint, publicKey, and amount are required' 
+      });
+    }
+
+    // Note: For token creation, the mint address should be the public key of the mint keypair
+    // If mint is provided as secret key (base58), we need to derive the public key
+    // For now, we'll use the mint as-is (it should be the mint address/public key)
+    const mintAddress = mint; // Assume mint is the public key/mint address
+
+    // Store token in our database FIRST
+    // If storage fails, we should NOT create the transaction
+    // This ensures tokens in our database match tokens created on-chain
+    let storedToken;
+    try {
+      console.log('[CREATE TOKEN] Attempting to store token in database...');
+      console.log('[CREATE TOKEN] Mint address:', mintAddress);
+      console.log('[CREATE TOKEN] Creator user ID:', req.user.userId);
+      console.log('[CREATE TOKEN] Creator wallet:', publicKey);
+      
+      storedToken = await tokenService.createToken({
+        mint: mintAddress,
+        name: tokenMetadata.name,
+        symbol: tokenMetadata.symbol,
+        description: tokenMetadata.description,
+        imageUrl: tokenMetadata.imageUrl,
+        metadataUri: tokenMetadata.uri,
+        creatorUserId: parseInt(req.user.userId),
+        creatorWallet: publicKey,
+        twitter: tokenMetadata.twitter,
+        telegram: tokenMetadata.telegram,
+        website: tokenMetadata.website,
+      });
+      console.log('✅ Token stored successfully in database:', storedToken.mint);
+    } catch (dbError) {
+      // If token already exists, that's okay (might be retry) - fetch the existing token
+      if (dbError.message.includes('already exists')) {
+        console.log('ℹ️ Token already exists in database:', mintAddress);
+        storedToken = await tokenService.findByMint(mintAddress);
+        if (!storedToken) {
+          return res.status(500).json({
+            error: 'Token exists but could not be retrieved from database',
+          });
+        }
+      } else {
+        // CRITICAL: If storage fails, DO NOT create transaction
+        console.error('❌ CRITICAL ERROR: Failed to store token in database!');
+        console.error('  Error message:', dbError.message);
+        console.error('  Error code:', dbError.code);
+        console.error('  Error stack:', dbError.stack);
+        console.error('  Mint address:', mintAddress);
+        console.error('  User ID:', req.user.userId);
+        console.error('  Transaction creation ABORTED - token will NOT be created on-chain');
+        
+        return res.status(500).json({
+          error: 'Failed to store token in database. Transaction creation aborted.',
+          details: dbError.message,
+          code: dbError.code,
+        });
+      }
+    }
+
+    // Only proceed with transaction creation if token was successfully stored
+    // Get create transaction (returns serialized transaction)
+    const transactionBuffer = await pumpPortalService.getCreateTokenTransaction({
+      publicKey,
+      tokenMetadata: {
+        name: tokenMetadata.name,
+        symbol: tokenMetadata.symbol,
+        uri: tokenMetadata.uri,
+      },
+      mint,
+      amount,
+      denominatedInSol,
+      slippage,
+      priorityFee,
+      pool,
+      isMayhemMode,
+      quoteMint,
+    });
+
+    // Convert to base64 for JSON response
+    const transactionBase64 = Buffer.from(transactionBuffer).toString('base64');
+
+    res.json({
+      success: true,
+      transaction: transactionBase64,
+      mint: mint,
+      message: 'Token stored and transaction ready to sign and send',
+      instructions: 'Deserialize this transaction, sign it with your wallet, and send it to Solana RPC',
+    });
+  } catch (error) {
+    console.error('Create token error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to create token transaction',
+      details: error.response?.data,
+    });
+  }
+});
+
+/**
+ * POST /api/tokens/:mint/buy
+ * Get buy transaction (Local API - returns transaction to sign)
+ * Docs: https://pumpportal.fun/local-trading-api/trading-api
+ */
+router.post('/:mint/buy', authenticate, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { 
+      publicKey,
+      amount, 
+      denominatedInSol = 'true',
+      slippage = 10,
+      priorityFee = 0.00001,
+      pool = 'auto',
+    } = req.body;
+
+    if (!publicKey || !amount) {
+      return res.status(400).json({ error: 'publicKey and amount are required' });
+    }
+
+    // Get buy transaction from PumpPortal
+    const response = await pumpPortalService.getBuyTransaction({
+      publicKey,
+      mint,
+      amount,
+      denominatedInSol,
+      slippage,
+      priorityFee,
+      pool,
+    });
+
+    // Response should be ArrayBuffer, convert to base64
+    let transactionBase64;
+    if (response instanceof ArrayBuffer || response instanceof Uint8Array) {
+      transactionBase64 = Buffer.from(response).toString('base64');
+    } else if (typeof response === 'string') {
+      transactionBase64 = response;
+    } else {
+      transactionBase64 = Buffer.from(JSON.stringify(response)).toString('base64');
+    }
+
+    res.json({
+      success: true,
+      serializedTransaction: transactionBase64,
+      message: 'Buy transaction ready to sign and send',
+    });
+  } catch (error) {
+    console.error('Buy token error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to create buy transaction',
+      details: error.response?.data,
+    });
+  }
+});
+
+/**
+ * POST /api/tokens/:mint/sell
+ * Get sell transaction (Local API - returns transaction to sign)
+ * Docs: https://pumpportal.fun/local-trading-api/trading-api
+ */
+router.post('/:mint/sell', authenticate, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { 
+      publicKey,
+      amount, // Can be number or "100%" for percentage
+      denominatedInSol = 'false',
+      slippage = 10,
+      priorityFee = 0.00001,
+      pool = 'auto',
+    } = req.body;
+
+    if (!publicKey || !amount) {
+      return res.status(400).json({ error: 'publicKey and amount are required' });
+    }
+
+    // Get sell transaction from PumpPortal
+    const response = await pumpPortalService.getSellTransaction({
+      publicKey,
+      mint,
+      amount,
+      denominatedInSol,
+      slippage,
+      priorityFee,
+      pool,
+    });
+
+    // Response should be ArrayBuffer, convert to base64
+    let transactionBase64;
+    if (response instanceof ArrayBuffer || response instanceof Uint8Array) {
+      transactionBase64 = Buffer.from(response).toString('base64');
+    } else if (typeof response === 'string') {
+      transactionBase64 = response;
+    } else {
+      transactionBase64 = Buffer.from(JSON.stringify(response)).toString('base64');
+    }
+
+    res.json({
+      success: true,
+      serializedTransaction: transactionBase64,
+      message: 'Sell transaction ready to sign and send',
+    });
+  } catch (error) {
+    console.error('Sell token error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to create sell transaction',
+      details: error.response?.data,
+    });
+  }
+});
+
+/**
+ * POST /api/tokens/collect-fees
+ * Manually trigger fee collection for all tokens (admin/creator only)
+ */
+router.post('/collect-fees', authenticate, async (req, res) => {
+  try {
+    // In production, you might want to restrict this to admins or token creators only
+    const feeCollectionService = (await import('../services/feeCollection.js')).default;
+    
+    // Run fee collection in background
+    feeCollectionService.collectAllFees()
+      .then(results => {
+        console.log('Fee collection completed:', results);
+      })
+      .catch(error => {
+        console.error('Fee collection error:', error);
+      });
+
+    res.json({
+      success: true,
+      message: 'Fee collection started in background',
+    });
+  } catch (error) {
+    console.error('Error starting fee collection:', error);
+    res.status(500).json({ error: error.message || 'Failed to start fee collection' });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint/chart
+ * Get candlestick chart data for a token from Pump.fun trades
+ */
+router.get('/:mint/chart', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { timeframe = '1h', limit = 1000 } = req.query;
+
+    // Validate timeframe
+    const validTimeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
+    const chartTimeframe = validTimeframes.includes(timeframe) ? timeframe : '1h';
+
+    // Validate and parse limit
+    const chartLimit = Math.min(Math.max(parseInt(limit) || 1000, 1), 10000); // Between 1 and 10000
+
+    console.log(`[GET /api/tokens/${mint}/chart] Fetching chart data (timeframe: ${chartTimeframe}, limit: ${chartLimit})`);
+
+    // Fetch candlestick data from Pump.fun trades
+    const candles = await pumpPortalService.getCandlestickData(mint, chartTimeframe, chartLimit);
+
+    res.json({
+      success: true,
+      chart: {
+        mint,
+        timeframe: chartTimeframe,
+        candles: candles,
+        count: candles.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error in /tokens/:mint/chart:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to fetch chart data',
+      details: error.response?.data,
+    });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint/trades
+ * Get raw trades data for a token from Pump.fun
+ */
+router.get('/:mint/trades', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { limit = 100, offset = 0, minimumSize = 0 } = req.query;
+
+    const trades = await pumpPortalService.getTrades(mint, {
+      limit: parseInt(limit) || 100,
+      offset: parseInt(offset) || 0,
+      minimumSize: parseFloat(minimumSize) || 0,
+    });
+
+    res.json({
+      success: true,
+      trades: trades,
+      count: Array.isArray(trades) ? trades.length : 0,
+    });
+  } catch (error) {
+    console.error('Error in /tokens/:mint/trades:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to fetch trades',
+      details: error.response?.data,
+    });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint/transactions
+ * Get transaction history for a token
+ */
+router.get('/:mint/transactions', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
+
+    const transactions = await transparencyService.getTokenTransactionHistory(mint, limit);
+
+    res.json({
+      success: true,
+      transactions: transactions.map(tx => ({
+        signature: tx.signature,
+        blockTime: tx.blockTime,
+        slot: tx.slot,
+        status: tx.status,
+        fee: tx.fee,
+        solscanUrl: `https://solscan.io/tx/${tx.signature}`,
+      })),
+      count: transactions.length,
+    });
+  } catch (error) {
+    console.error('Error fetching token transactions:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch transactions' });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint/transfers
+ * Get token transfers for a token
+ */
+router.get('/:mint/transfers', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
+
+    const transfers = await transparencyService.getTokenTransfers(mint, limit);
+
+    res.json({
+      success: true,
+      transfers: transfers.map(transfer => ({
+        signature: transfer.signature,
+        blockTime: transfer.blockTime,
+        from: transfer.from,
+        to: transfer.to,
+        amount: transfer.amount,
+        type: transfer.type,
+        solscanUrl: `https://solscan.io/tx/${transfer.signature}`,
+      })),
+      count: transfers.length,
+    });
+  } catch (error) {
+    console.error('Error fetching token transfers:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch transfers' });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint/creator-activity
+ * Get creator wallet activity for a token
+ */
+router.get('/:mint/creator-activity', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    
+    // Get token to find creator wallet
+    const token = await tokenService.findByMint(mint);
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    const creatorWallet = token.creatorWallet;
+    
+    // Get wallet stats
+    const walletStats = await transparencyService.getWalletStats(creatorWallet);
+    
+    // Get recent transactions
+    const recentTxs = await transparencyService.getWalletTransactionHistory(creatorWallet, 20);
+
+    res.json({
+      success: true,
+      creator: {
+        wallet: creatorWallet,
+        stats: walletStats,
+        recentTransactions: recentTxs.map(tx => ({
+          signature: tx.signature,
+          blockTime: tx.blockTime,
+          status: tx.status,
+          balanceChange: tx.balanceChange,
+          fee: tx.fee,
+          solscanUrl: tx.solscanUrl,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching creator activity:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch creator activity' });
+  }
+});
+
+/**
+ * GET /api/tokens/:mint/fee-history
+ * Get fee collection and distribution history
+ */
+router.get('/:mint/fee-history', optionalAuth, async (req, res) => {
+  try {
+    const { mint } = req.params;
+    
+    // Get token to find creator wallet and fee distribution
+    const token = await tokenService.findByMint(mint);
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    const creatorWallet = token.creatorWallet;
+    const feeDistribution = token.feeDistribution || { holders: 0, dev: 100, flywheel: 0, supportBonkv2: 0 };
+    
+    // Get fee collection transactions
+    const feeTransactions = await transparencyService.getFeeCollectionHistory(mint, creatorWallet);
+
+    res.json({
+      success: true,
+      feeDistribution: feeDistribution,
+      feeHistory: feeTransactions.map(tx => ({
+        signature: tx.signature,
+        blockTime: tx.blockTime,
+        status: tx.status,
+        balanceChange: tx.balanceChange,
+        solscanUrl: tx.solscanUrl,
+      })),
+      count: feeTransactions.length,
+    });
+  } catch (error) {
+    console.error('Error fetching fee history:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch fee history' });
+  }
+});
+
+export default router;
