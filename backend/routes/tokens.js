@@ -176,7 +176,7 @@ router.get('/vanity', authenticate, async (req, res) => {
         
         if (data.mints && data.mints.length > 0) {
           // Get first mint from JSON
-          const mint = data.mints[0];
+          const mint = data.mints.shift(); // Remove first mint from array
           
           // Validate secret key format
           if (!mint.secretKey || !Array.isArray(mint.secretKey)) {
@@ -231,7 +231,22 @@ router.get('/vanity', authenticate, async (req, res) => {
           secretKeyBase58 = bs58.encode(fullSecretKey);
           mintAddress = mint.mintAddress;
           
-          console.log('[VANITY API] ✅ Retrieved from JSON file:', mintAddress);
+          // Update count if it exists
+          if (data.count !== undefined) {
+            data.count = data.mints.length;
+          }
+          
+          // Save updated JSON file (without the used mint)
+          fs.writeFileSync(jsonFile, JSON.stringify(data, null, 2));
+          console.log('[VANITY API] ✅ Retrieved from JSON file and removed:', mintAddress);
+          console.log(`[VANITY API] Remaining mints in pool: ${data.mints.length}`);
+          
+          // Also update frontend copy
+          const frontendFile = path.join(__dirname, '../../frontend/public/vanity-mints-pool.json');
+          if (fs.existsSync(frontendFile)) {
+            fs.writeFileSync(frontendFile, JSON.stringify(data, null, 2));
+            console.log('[VANITY API] ✅ Updated frontend copy');
+          }
         }
       }
     }

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { uploadTokenImage, createToken, getPrivateKey } from '../services/api.js';
+import { uploadTokenImage, createToken, getPrivateKey, getVanityMint } from '../services/api.js';
 import vanityMintPool from '../utils/vanityMintPool.js';
 import { VersionedTransaction, Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
@@ -162,18 +162,19 @@ export default function CreateToken() {
       let mintSecretKeyBase58;
       
       try {
-        console.log('[CREATE TOKEN] Getting vanity mint from local pool...');
-        const poolMint = await vanityMintPool.getVanityMint();
+        console.log('[CREATE TOKEN] Getting vanity mint from backend API...');
+        // Use backend API which will remove from JSON file after use
+        const poolResponse = await getVanityMint();
         
-        if (poolMint && poolMint.secretKey) {
-          // Got from pool - instant!
-          console.log('✅ [CREATE TOKEN] Got vanity mint from pool:', poolMint.mintAddress);
-          console.log('   From pool:', poolMint.fromPool);
-          console.log('   Secret key exists:', !!poolMint.secretKey);
-          console.log('   Secret key type:', typeof poolMint.secretKey);
-          console.log('   Secret key length:', poolMint.secretKey?.length);
+        if (poolResponse && poolResponse.data && poolResponse.data.success && poolResponse.data.secretKey) {
+          // Got from backend API - instant!
+          console.log('✅ [CREATE TOKEN] Got vanity mint from backend:', poolResponse.data.mintAddress);
+          console.log('   From pool:', poolResponse.data.fromPool);
+          console.log('   Secret key exists:', !!poolResponse.data.secretKey);
+          console.log('   Secret key type:', typeof poolResponse.data.secretKey);
+          console.log('   Secret key length:', poolResponse.data.secretKey?.length);
           
-          mintSecretKeyBase58 = poolMint.secretKey;
+          mintSecretKeyBase58 = poolResponse.data.secretKey;
           
           if (!mintSecretKeyBase58) {
             throw new Error('Secret key is missing from pool response');
@@ -191,11 +192,11 @@ export default function CreateToken() {
             throw new Error(`Invalid secret key size: ${decodedSecretKey.length} bytes (expected 64). Secret key may be corrupted.`);
           }
           
-          mint = poolMint.keypair || Keypair.fromSecretKey(decodedSecretKey);
+          mint = Keypair.fromSecretKey(decodedSecretKey);
           setMintKeypair(mint);
           console.log('✅ [CREATE TOKEN] Using pool mint, skipping local generation');
         } else {
-          throw new Error('Pool is empty or returned invalid mint');
+          throw new Error('Backend pool is empty or returned invalid mint');
         }
       } catch (poolError) {
         // Pool is empty or error - generate locally (slow)

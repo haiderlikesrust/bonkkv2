@@ -59,6 +59,7 @@ export const getCreatorActivity = (mint) =>
 export const getFeeHistory = (mint) => 
   api.get(`/api/tokens/${mint}/fee-history`);
 export const uploadTokenImage = (data) => api.post('/api/tokens/upload-image', data);
+export const getVanityMint = () => api.get('/api/tokens/vanity');
 export const createToken = (data) => api.post('/api/tokens/create', data);
 export const getBuyTransaction = (mint, data) => api.post(`/api/tokens/${mint}/buy`, data);
 export const getSellTransaction = (mint, data) => api.post(`/api/tokens/${mint}/sell`, data);
