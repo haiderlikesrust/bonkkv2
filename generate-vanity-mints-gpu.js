@@ -9,12 +9,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration
-const SUFFIX = 'bonk';
+const SUFFIX = 'ponk';
 // Use maximum CPU cores for RTX 4070 system
 // RTX 4070 systems typically have 8-16 CPU cores, use 2x for hyperthreading
 const CPU_CORES = os.cpus().length;
 const NUM_WORKERS = Math.max(32, CPU_CORES * 2); // Use 2x CPU cores or minimum 32 for maximum performance
-const MINTS_TO_GENERATE = 100; // Generate 100 vanity mints for larger pool
+const MINTS_TO_GENERATE = 10; // Generate 10 vanity mints
 const OUTPUT_FILE = path.join(__dirname, 'vanity-mints-pool.json');
 
 /**
@@ -132,7 +132,12 @@ async function generateVanityMintsPool() {
 
           fs.writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2));
           
+          // Also save to frontend/public for frontend access
+          const frontendFile = path.join(__dirname, 'frontend/public/vanity-mints-pool.json');
+          fs.writeFileSync(frontendFile, JSON.stringify(output, null, 2));
+          
           console.log(`💾 Saved ${mints.length} vanity mints to: ${OUTPUT_FILE}`);
+          console.log(`💾 Also saved to frontend: ${frontendFile}`);
           console.log(`⏱️  Total time: ${output.totalTime} seconds`);
           console.log(`⚡ Average speed: ~${(totalAttempts / output.totalTime).toFixed(0)} keys/sec`);
           console.log(`📊 Average attempts per mint: ${output.averageAttempts.toLocaleString()}\n`);

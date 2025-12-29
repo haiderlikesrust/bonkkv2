@@ -31,7 +31,7 @@ except:
     GPU_AVAILABLE = False
     GPU_NAME = "CPU Only"
 
-SUFFIX = "bonk"
+SUFFIX = "ponk"
 MINTS_TO_GENERATE = 100
 OUTPUT_FILE = "vanity-mints-pool.json"
 

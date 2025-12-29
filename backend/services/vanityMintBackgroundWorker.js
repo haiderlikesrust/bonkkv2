@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const POOL_JSON_FILE = path.join(__dirname, '../../vanity-mints-pool.json');
-const SUFFIX = 'bonk';
+const SUFFIX = 'ponk';
 
 /**
  * Background Worker for Vanity Mint Generation

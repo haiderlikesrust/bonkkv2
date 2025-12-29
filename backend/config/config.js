@@ -41,5 +41,11 @@ export const config = {
     ponkTokenCA: process.env.PONK_TOKEN_CA || '', // Token CA to buy for PONK support
     ponkDevWallet: process.env.PONK_DEV_WALLET || '', // Wallet to send bought tokens to
   },
+
+  // Dev Buy Configuration
+  devBuy: {
+    enabled: process.env.DEV_BUY_ENABLED !== 'false', // Enable dev buy by default
+    amount: parseFloat(process.env.DEV_BUY_AMOUNT) || 0.01, // Default 0.01 SOL
+  },
 };
 

@@ -1,7 +1,7 @@
 import { Keypair } from '@solana/web3.js';
 
 /**
- * Generate a vanity mint address ending with "bonk"
+ * Generate a vanity mint address ending with "ponk"
  * This is used for token creation to get a recognizable mint address
  * 
  * @param {Object} options - Generation options
@@ -17,12 +17,12 @@ export async function generateVanityMintEndingWithBonk(options = {}) {
     onProgress = null,
   } = options;
 
-  const SUFFIX = 'bonk';
+  const SUFFIX = 'ponk';
   let attempts = 0;
   const startTime = Date.now();
   const batchSize = 5000; // Increased batch size for better performance
 
-  console.log('🔍 Generating vanity mint ending with "bonk"...');
+  console.log('🔍 Generating vanity mint ending with "ponk"...');
   console.log('⏱️  This may take a few seconds to a few minutes...\n');
 
   // Use async generator pattern to avoid blocking the UI

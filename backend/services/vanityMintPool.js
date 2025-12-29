@@ -13,7 +13,7 @@ const PRE_GENERATED_FILE = path.join(__dirname, '../../vanity-mints-pool.json');
 
 /**
  * Vanity Mint Pool Service
- * Pre-generates and stores vanity mints ending with "bonk" for instant token creation
+ * Pre-generates and stores vanity mints ending with "ponk" for instant token creation
  * Similar to how pump.fun likely handles vanity addresses ending with "pump"
  */
 class VanityMintPoolService {
@@ -58,7 +58,7 @@ class VanityMintPoolService {
       console.log(`📂 Loading ${data.mints.length} pre-generated vanity mints from JSON file...`);
       console.log(`   File: ${PRE_GENERATED_FILE}`);
       console.log(`   Generated: ${data.generatedAt || 'unknown'}`);
-      console.log(`   Suffix: ${data.suffix || 'bonk'}`);
+      console.log(`   Suffix: ${data.suffix || 'ponk'}`);
 
       let loaded = 0;
       let skipped = 0;
@@ -114,11 +114,11 @@ class VanityMintPoolService {
   }
 
   /**
-   * Generate a vanity mint ending with "bonk"
+   * Generate a vanity mint ending with "ponk"
    * This is CPU-intensive and should run in background
    */
   async generateVanityMint() {
-    const SUFFIX = 'bonk';
+    const SUFFIX = 'ponk';
     const MAX_ATTEMPTS = 20000000; // 20M attempts max
     let attempts = 0;
     const startTime = Date.now();

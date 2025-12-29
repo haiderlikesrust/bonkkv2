@@ -31,6 +31,7 @@ export default function CreateToken() {
     twitter: '',
     telegram: '',
     website: '',
+    devBuyAmount: '0.01', // Default dev buy amount
   });
 
   const [metadataUri, setMetadataUri] = useState('');
@@ -243,7 +244,7 @@ export default function CreateToken() {
         },
         mint: mintSecretKeyBase58, // Secret key - backend converts to public key for pumpportal
         publicKey: user.walletAddress,
-        amount: 0.01, // Dev buy of 0.01 SOL
+        amount: parseFloat(formData.devBuyAmount) || 0.01, // Custom dev buy amount
         denominatedInSol: 'true',
         slippage: 10,
         priorityFee: 0.0005,
@@ -353,10 +354,10 @@ export default function CreateToken() {
               const needsLamports = parseInt(match[2]) / 1e9; // Convert to SOL
               errorMessage = `Insufficient SOL balance. You have ${hasLamports.toFixed(4)} SOL but need ${needsLamports.toFixed(4)} SOL. Please add more SOL to your wallet.`;
             } else {
-              errorMessage = 'Insufficient SOL balance. Please add more SOL to your wallet to cover transaction fees and the dev buy amount (0.01 SOL).';
+              errorMessage = `Insufficient SOL balance. Please add more SOL to your wallet to cover transaction fees and the dev buy amount (${formData.devBuyAmount || 0.01} SOL).`;
             }
           } else {
-            errorMessage = 'Insufficient SOL balance. Please add more SOL to your wallet to cover transaction fees and the dev buy amount (0.01 SOL).';
+            errorMessage = `Insufficient SOL balance. Please add more SOL to your wallet to cover transaction fees and the dev buy amount (${formData.devBuyAmount || 0.01} SOL).`;
           }
         } else {
           // For other transaction errors, try to get more details
@@ -587,6 +588,26 @@ export default function CreateToken() {
                       className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
+                </div>
+
+                {/* Dev Buy Amount */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Dev Buy Amount (SOL)
+                  </label>
+                  <input
+                    type="number"
+                    name="devBuyAmount"
+                    value={formData.devBuyAmount}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.001"
+                    placeholder="0.01"
+                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Amount of SOL to buy your token when it's created (default: 0.01 SOL)
+                  </p>
                 </div>
 
                 {/* Submit */}

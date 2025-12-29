@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration
-const SUFFIX = 'bonk'; // Address should end with this
+const SUFFIX = 'ponk'; // Address should end with this
 const MAX_ATTEMPTS = 100000000; // Maximum attempts before giving up (100M)
 const UPDATE_INTERVAL = 50000; // Update progress every N attempts
 const USE_GPU = false; // Set to true if using GPU-accelerated generation
@@ -23,7 +23,7 @@ function isValidVanityAddress(publicKey) {
 /**
  * Generate vanity mint address ending with specified suffix
  * 
- * Difficulty: For a 4-character suffix like "bonk":
+ * Difficulty: For a 4-character suffix like "ponk":
  * - Probability: ~1 in 58^4 = ~11.3 million attempts on average
  * - CPU speed: ~10,000-50,000 keys/sec = 4-19 minutes average
  * - GPU speed: ~500,000-2,000,000 keys/sec = 6-23 seconds average
@@ -68,7 +68,7 @@ function generateVanityMint() {
       };
 
       // Save to file
-      const outputPath = path.join(__dirname, 'vanity-mint-bonk.json');
+      const outputPath = path.join(__dirname, 'vanity-mint-ponk.json');
       fs.writeFileSync(outputPath, JSON.stringify(keypairData, null, 2));
 
       console.log(`💾 Mint keypair saved to: ${outputPath}`);
