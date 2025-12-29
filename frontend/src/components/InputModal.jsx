@@ -28,7 +28,7 @@ export default function InputModal({ isOpen, onClose, onConfirm, title, message,
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
-          className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
           onKeyPress={(e) => {
             if (e.key === 'Enter') {
               handleConfirm();
@@ -46,7 +46,7 @@ export default function InputModal({ isOpen, onClose, onConfirm, title, message,
           <button
             onClick={handleConfirm}
             disabled={!value.trim()}
-            className="flex-1 px-4 py-3 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {buttonText}
           </button>

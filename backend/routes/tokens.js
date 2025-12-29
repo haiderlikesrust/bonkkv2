@@ -356,7 +356,7 @@ router.get('/:mint', optionalAuth, async (req, res) => {
           createdAt: createdAt.toISOString(),
           updatedAt: updatedAt.toISOString(),
           createdAtDisplay: createdAtDisplay,
-          feeDistribution: { holders: 50, dev: 50, flywheel: 0, supportBonkv2: 0 }, // Default for Pump.fun tokens
+          feeDistribution: { holders: 50, dev: 50, flywheel: 0, supportPonk: 0 }, // Default for Pump.fun tokens
           // Additional Pump.fun specific fields
           complete: pumpFunData.complete,
           usdMarketCap: pumpFunData.usd_market_cap,
@@ -431,8 +431,8 @@ router.put('/:mint/fees', authenticate, async (req, res) => {
     }
 
     // Validate fee distribution
-    const { holders, dev, flywheel, supportBonkv2 } = feeDistribution;
-    const total = holders + dev + flywheel + supportBonkv2;
+    const { holders, dev, flywheel, supportPonk } = feeDistribution;
+    const total = holders + dev + flywheel + supportPonk;
     if (total !== 100) {
       return res.status(400).json({ error: 'Fee distribution must total 100%' });
     }
@@ -1137,7 +1137,7 @@ router.get('/:mint/fee-history', optionalAuth, async (req, res) => {
     }
 
     const creatorWallet = token.creatorWallet;
-    const feeDistribution = token.feeDistribution || { holders: 0, dev: 100, flywheel: 0, supportBonkv2: 0 };
+    const feeDistribution = token.feeDistribution || { holders: 0, dev: 100, flywheel: 0, supportPonk: 0 };
     
     // Get fee collection transactions
     const feeTransactions = await transparencyService.getFeeCollectionHistory(mint, creatorWallet);

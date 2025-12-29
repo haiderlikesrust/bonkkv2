@@ -241,10 +241,10 @@ export default function TokenDetail() {
 
   if (errorState || !token) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0B0F14' }}>
         <div className="text-center">
           <div className="text-white text-xl mb-4">Token not found</div>
-          <Link to="/" className="text-brand-400 hover:underline">
+          <Link to="/" className="text-green-500 hover:underline">
             Go back home
           </Link>
         </div>
@@ -257,7 +257,7 @@ export default function TokenDetail() {
     : `$${token.marketCap.toFixed(2)}`;
 
   return (
-    <div className="min-h-screen bg-dark-900">
+    <div className="min-h-screen" style={{ background: '#0B0F14' }}>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       <InputModal
         isOpen={showPrivateKeyModal}
@@ -286,7 +286,7 @@ export default function TokenDetail() {
         <div className="glass rounded-3xl p-8 mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-6">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center text-4xl">
+              <div className="w-20 h-20 rounded-2xl bg-green-500 flex items-center justify-center text-4xl">
                 {token.imageUrl ? (
                   <img src={getImageUrl(token.imageUrl)} alt={token.name} className="w-full h-full rounded-2xl object-cover" />
                 ) : (
@@ -302,7 +302,7 @@ export default function TokenDetail() {
                     href={`https://solscan.io/token/${token.mint}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-brand-400 hover:text-brand-300"
+                    className="flex items-center gap-1 text-green-500 hover:text-green-600"
                   >
                     <ExternalLink className="w-4 h-4" />
                     View on Solscan
@@ -319,7 +319,7 @@ export default function TokenDetail() {
               </div>
               <div>
                 <div className="text-sm text-gray-400">Progress</div>
-                <div className="text-2xl font-bold text-brand-400">{token.progress?.toFixed(2) || 0}%</div>
+                <div className="text-2xl font-bold text-green-500">{token.progress?.toFixed(2) || 0}%</div>
               </div>
             </div>
           </div>
@@ -384,7 +384,7 @@ export default function TokenDetail() {
                     onClick={() => setChartTimeframe(tf)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       chartTimeframe === tf
-                        ? 'bg-brand-500 text-white'
+                        ? 'bg-green-500 text-white'
                         : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
                     }`}
                   >
@@ -419,7 +419,7 @@ export default function TokenDetail() {
                 onClick={() => setActiveTab('buy')}
                 className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${
                   activeTab === 'buy'
-                    ? 'bg-gradient-hot text-white'
+                    ? 'btn-primary'
                     : 'bg-dark-800 text-gray-400 hover:text-white'
                 }`}
               >
@@ -429,7 +429,7 @@ export default function TokenDetail() {
                 onClick={() => setActiveTab('sell')}
                 className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${
                   activeTab === 'sell'
-                    ? 'bg-gradient-hot text-white'
+                    ? 'btn-primary'
                     : 'bg-dark-800 text-gray-400 hover:text-white'
                 }`}
               >
@@ -446,7 +446,7 @@ export default function TokenDetail() {
                     value={buyAmount}
                     onChange={(e) => setBuyAmount(e.target.value)}
                     placeholder="0.0"
-                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                   <div className="flex items-center gap-2 mt-2">
                     <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
@@ -463,7 +463,7 @@ export default function TokenDetail() {
                 <button
                   onClick={handleBuy}
                   disabled={processing || !user || !user.walletAddress}
-                  className="w-full py-4 rounded-xl bg-gradient-hot hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 rounded-xl btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processing ? 'Processing...' : 'Buy Token'}
                 </button>
@@ -482,7 +482,7 @@ export default function TokenDetail() {
                     value={sellAmount}
                     onChange={(e) => setSellAmount(e.target.value)}
                     placeholder="0.0"
-                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                   <div className="flex items-center gap-2 mt-2">
                     <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
@@ -499,7 +499,7 @@ export default function TokenDetail() {
                 <button
                   onClick={handleSell}
                   disabled={processing || !user || !user.walletAddress}
-                  className="w-full py-4 rounded-xl bg-gradient-hot hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 rounded-xl btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processing ? 'Processing...' : 'Sell Token'}
                 </button>

@@ -7,7 +7,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
     holders: 0,
     dev: 0,
     flywheel: 0,
-    supportBonkv2: 0,
+    supportPonk: 0,
   });
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
         holders: token.feeDistribution.holders || 0,
         dev: token.feeDistribution.dev || 0,
         flywheel: token.feeDistribution.flywheel || 0,
-        supportBonkv2: token.feeDistribution.supportBonkv2 || 0,
+        supportPonk: token.feeDistribution.supportPonk || 0,
       });
     } else {
       // Default distribution
@@ -24,7 +24,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
         holders: 50,
         dev: 30,
         flywheel: 10,
-        supportBonkv2: 10,
+        supportPonk: 10,
       });
     }
   }, [token]);
@@ -56,7 +56,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
         {token && (
           <div className="bg-dark-800 rounded-xl p-4 mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center">
                 {token.imageUrl ? (
                   <img src={getImageUrl(token.imageUrl)} alt={token.name} className="w-full h-full rounded-xl object-cover" />
                 ) : (
@@ -85,7 +85,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
               step="1"
               value={feeDistribution.holders}
               onChange={(e) => handleChange('holders', e.target.value)}
-              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
@@ -102,7 +102,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
               step="1"
               value={feeDistribution.dev}
               onChange={(e) => handleChange('dev', e.target.value)}
-              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
@@ -119,24 +119,24 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
               step="1"
               value={feeDistribution.flywheel}
               onChange={(e) => handleChange('flywheel', e.target.value)}
-              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
           {/* Support BONKv2 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-semibold text-gray-300">Support BONKv2</label>
-              <span className="text-sm text-gray-400">{feeDistribution.supportBonkv2}%</span>
+              <label className="text-sm font-semibold text-gray-300">Support PONK</label>
+              <span className="text-sm text-gray-400">{feeDistribution.supportPonk}%</span>
             </div>
             <input
               type="number"
               min="0"
               max="100"
               step="1"
-              value={feeDistribution.supportBonkv2}
-              onChange={(e) => handleChange('supportBonkv2', e.target.value)}
-              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              value={feeDistribution.supportPonk}
+              onChange={(e) => handleChange('supportPonk', e.target.value)}
+              className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function FeeDistributionModal({ isOpen, onClose, token, onSave })
           <button
             onClick={handleSave}
             disabled={!isValid}
-            className="flex-1 px-4 py-3 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save Distribution
           </button>

@@ -1,6 +1,6 @@
-# BONKv2 Frontend
+# PONK Frontend
 
-Frontend for BONKv2.fun - A modern token launch platform inspired by BONKfun.
+Frontend for PONK.fun - A modern token launch platform inspired by BONKfun.
 
 ## Features
 

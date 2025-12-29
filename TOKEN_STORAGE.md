@@ -2,7 +2,7 @@
 
 ## Overview
 
-BONKv2.fun is a **Pump.fun wrapper** - we only list and display tokens that are created through our platform. All tokens created via our API are stored in our SQLite database.
+PONK.fun is a **Pump.fun wrapper** - we only list and display tokens that are created through our platform. All tokens created via our API are stored in our SQLite database.
 
 ## How It Works
 

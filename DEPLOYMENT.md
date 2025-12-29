@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide explains how to deploy bonkv2.fun to your VPS with automatic deployment via GitHub Actions.
+This guide explains how to deploy ponk.fun to your VPS with automatic deployment via GitHub Actions.
 
 ## Prerequisites
 
@@ -27,8 +27,8 @@ sudo chmod +x /usr/local/bin/docker-compose
 
 ```bash
 cd /path/to/your/projects
-git clone <your-repo-url> bonkv2
-cd bonkv2
+git clone <your-repo-url> ponk
+cd ponk
 ```
 
 ### 3. Create .env File
@@ -82,13 +82,13 @@ Go to your GitHub repository → Settings → Secrets and variables → Actions,
 Edit `.github/workflows/deploy.yml` and update the path in the SSH command:
 
 ```yaml
-cd ~/bonkv2 || cd /var/www/bonkv2 || exit 1  # Update to your actual path
+cd ~/ponk || cd /var/www/ponk || exit 1  # Update to your actual path
 ```
 
 Common paths:
-- `~/bonkv2` (home directory)
-- `/var/www/bonkv2` (web directory)
-- `/opt/bonkv2` (opt directory)
+- `~/ponk` (home directory)
+- `/var/www/ponk` (web directory)
+- `/opt/ponk` (opt directory)
 
 ## Manual Deployment
 

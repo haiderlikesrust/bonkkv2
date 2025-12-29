@@ -143,7 +143,7 @@ export default function Wallets() {
         <div className="flex flex-wrap gap-4 mb-8">
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white"
+            className="flex items-center gap-2 px-6 py-3 btn-primary"
           >
             <Plus className="w-5 h-5" />
             Create New Wallet
@@ -155,7 +155,7 @@ export default function Wallets() {
           <div className="glass rounded-3xl p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center">
                   <Wallet className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -174,7 +174,7 @@ export default function Wallets() {
                     <span className="text-sm text-gray-400">Balance</span>
                     <button
                       onClick={() => user.walletAddress && fetchBalance(user.walletAddress)}
-                      className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+                      className="text-xs text-green-500 hover:text-green-600 transition-colors"
                     >
                       Refresh
                     </button>
@@ -195,7 +195,7 @@ export default function Wallets() {
                   <span className="text-sm text-gray-400">Address</span>
                   <button
                     onClick={() => handleCopy(user.walletAddress, 'connected')}
-                    className="flex items-center gap-2 text-brand-400 hover:text-brand-300 transition-colors"
+                    className="flex items-center gap-2 text-green-500 hover:text-green-600 transition-colors"
                   >
                     {copied === 'connected' ? (
                       <>
@@ -215,7 +215,7 @@ export default function Wallets() {
                   href={`https://solscan.io/account/${user.walletAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-brand-400 hover:text-brand-300 mt-3 text-sm"
+                  className="flex items-center gap-2 text-green-500 hover:text-green-600 mt-3 text-sm"
                 >
                   <ExternalLink className="w-4 h-4" />
                   View on Solscan
@@ -233,12 +233,12 @@ export default function Wallets() {
               value={importKey}
               onChange={(e) => setImportKey(e.target.value)}
               placeholder="Enter private key (Base58 format)"
-              className="flex-1 px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="flex-1 px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             <button
               onClick={handleImportWallet}
               disabled={loading}
-              className="px-6 py-3 bg-brand-500 rounded-xl hover:bg-brand-600 transition-colors font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Connecting...' : 'Connect Wallet'}
             </button>
@@ -309,7 +309,7 @@ export default function Wallets() {
                     <button
                       onClick={() => handleConnectWallet(wallet.privateKey)}
                       disabled={loading || !wallet.privateKey}
-                      className="mt-3 w-full py-2 bg-brand-500/20 text-brand-400 rounded-lg hover:bg-brand-500/30 transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mt-3 w-full py-2 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 transition-colors font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Connect This Wallet
                     </button>
@@ -329,7 +329,7 @@ export default function Wallets() {
                 <button
                   onClick={handleCreateWallet}
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Creating...' : 'Create New Wallet'}
                 </button>

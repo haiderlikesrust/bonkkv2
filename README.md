@@ -1,6 +1,6 @@
-# 🚀 bonkv2.fun Backend
+# 🚀 ponk.fun Backend
 
-Backend API for bonkv2.fun using [PumpPortal.fun](https://pumpportal.fun/) Local Transaction API.
+Backend API for ponk.fun using [PumpPortal.fun](https://pumpportal.fun/) Local Transaction API.
 
 ## 📋 Features
 

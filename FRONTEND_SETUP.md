@@ -1,6 +1,6 @@
-# 🎨 BONKv2 Frontend Setup
+# 🎨 PONK Frontend Setup
 
-Frontend for bonkv2.fun - Similar to BONKfun but with email/password authentication.
+Frontend for ponk.fun - Similar to BONKfun but with email/password authentication.
 
 ## ✅ What's Created
 

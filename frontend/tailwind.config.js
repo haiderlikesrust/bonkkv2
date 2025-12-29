@@ -7,20 +7,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          400: '#FF6B35',
-          500: '#FF8C42',
-          600: '#E85D04',
+        green: {
+          500: '#22C55E',
+          600: '#16A34A',
+          700: '#15803D',
         },
         dark: {
-          700: '#1a1a1a',
-          800: '#0F0F0F',
-          900: '#000000',
+          700: '#171F2A',
+          800: '#121820',
+          900: '#0B0F14',
+        },
+        gray: {
+          700: '#1F2937',
+          800: '#111827',
         }
       },
-      backgroundImage: {
-        'gradient-hot': 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
-      }
     },
   },
   plugins: [],

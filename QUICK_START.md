@@ -1,9 +1,9 @@
-# 🚀 bonkv2.fun Backend - Quick Start
+# 🚀 ponk.fun Backend - Quick Start
 
 ## 📁 Project Structure
 
 ```
-bonkv2-fun/
+ponk-fun/
 ├── backend/                 # Backend API
 │   ├── config/             # Configuration
 │   ├── services/           # Business logic

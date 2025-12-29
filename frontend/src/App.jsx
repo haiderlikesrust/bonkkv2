@@ -9,6 +9,8 @@ import TokenDetail from './pages/TokenDetail.jsx';
 import Wallets from './pages/Wallets.jsx';
 import CreateToken from './pages/CreateToken.jsx';
 import Portfolio from './pages/Portfolio.jsx';
+import Settings from './pages/Settings.jsx';
+import Watchlist from './pages/Watchlist.jsx';
 
 function App() {
   const [isDark, setIsDark] = useState(true);
@@ -29,13 +31,14 @@ function App() {
               path="/*"
               element={
                 <>
-                  <Header isDark={isDark} setIsDark={setIsDark} />
                   <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/token/:mint" element={<TokenDetail />} />
-                    <Route path="/wallets" element={<Wallets />} />
-                    <Route path="/create" element={<CreateToken />} />
-                    <Route path="/portfolio" element={<Portfolio />} />
+                    <Route path="/token/:mint" element={<><Header isDark={isDark} setIsDark={setIsDark} /><TokenDetail /></>} />
+                    <Route path="/wallets" element={<><Header isDark={isDark} setIsDark={setIsDark} /><Wallets /></>} />
+                    <Route path="/create" element={<><Header isDark={isDark} setIsDark={setIsDark} /><CreateToken /></>} />
+                    <Route path="/portfolio" element={<><Header isDark={isDark} setIsDark={setIsDark} /><Portfolio /></>} />
+                    <Route path="/watchlist" element={<><Header isDark={isDark} setIsDark={setIsDark} /><Watchlist /></>} />
+                    <Route path="/settings" element={<><Header isDark={isDark} setIsDark={setIsDark} /><Settings /></>} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </>

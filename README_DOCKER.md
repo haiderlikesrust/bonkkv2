@@ -4,8 +4,8 @@
 
 1. **Clone repository on VPS:**
    ```bash
-   git clone <your-repo-url> bonkv2
-   cd bonkv2
+   git clone <your-repo-url> ponk
+   cd ponk
    ```
 
 2. **Create `.env` file:**
@@ -43,7 +43,7 @@
 2. Copy public key to VPS: `ssh-copy-id -i ~/.ssh/github_actions.pub user@vps`
 3. Add private key to GitHub Secrets as `SSH_PRIVATE_KEY`
 4. Add `VPS_HOST` and `VPS_USER` to GitHub Secrets
-5. Update path in `.github/workflows/deploy.yml` (line with `cd ~/bonkv2`)
+5. Update path in `.github/workflows/deploy.yml` (line with `cd ~/ponk`)
 
 ## Environment Variables
 

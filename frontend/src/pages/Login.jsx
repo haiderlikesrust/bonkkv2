@@ -26,16 +26,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0B0F14' }}>
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-hot rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
               <span className="text-3xl">🔨</span>
             </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-brand-400 to-brand-500 bg-clip-text text-transparent">
-              BONKv2
+            <span className="text-3xl font-bold text-white">
+              PONK
             </span>
           </div>
           <h2 className="text-2xl font-bold text-white">Welcome Back</h2>
@@ -60,7 +60,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-xl bg-dark-800 border border-white/10 focus:border-brand-500 focus:outline-none text-white placeholder-gray-500"
+                className="w-full px-4 py-3 rounded-xl bg-dark-800 border border-gray-700 focus:border-green-500 focus:outline-none text-white placeholder-gray-500"
                 placeholder="you@example.com"
               />
             </div>
@@ -74,7 +74,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 rounded-xl bg-dark-800 border border-white/10 focus:border-brand-500 focus:outline-none text-white placeholder-gray-500"
+                className="w-full px-4 py-3 rounded-xl bg-dark-800 border border-gray-700 focus:border-green-500 focus:outline-none text-white placeholder-gray-500"
                 placeholder="••••••••"
               />
             </div>
@@ -82,7 +82,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-hot hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -91,7 +91,7 @@ export default function Login() {
           <div className="mt-6 text-center">
             <p className="text-gray-400">
               Don't have an account?{' '}
-              <Link to="/register" className="text-brand-400 hover:text-brand-500 font-medium">
+              <Link to="/register" className="text-green-500 hover:text-green-600 font-medium">
                 Sign up
               </Link>
             </p>

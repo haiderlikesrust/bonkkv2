@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: bonkv2-backend
+    container_name: ponk-backend
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -19,7 +19,7 @@ services:
       # Mount vanity mints pool file (must exist on host)
       - ./vanity-mints-pool.json:/app/vanity-mints-pool.json:ro
     networks:
-      - bonkv2-network
+      - ponk-network
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
@@ -35,7 +35,7 @@ services:
         # Empty string uses relative URLs (nginx proxies /api to backend)
         # Or set to full URL if backend is on different server
         VITE_API_URL: ""
-    container_name: bonkv2-frontend
+    container_name: ponk-frontend
     restart: unless-stopped
     ports:
       - "80:80"
@@ -43,9 +43,9 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - bonkv2-network
+      - ponk-network
 
 networks:
-  bonkv2-network:
+  ponk-network:
     driver: bridge
 

@@ -42,27 +42,27 @@ export default function Header({ isDark, setIsDark }) {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
-              <img src="/logo.webp" alt="BONKv2 Logo" className="w-full h-full object-cover" />
+              <img src="/logo.png" alt="PONK Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-brand-400 to-brand-500 bg-clip-text text-transparent">
-              BONKv2
+            <span className="text-2xl font-bold text-white">
+              PONK
             </span>
           </Link>
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className="text-white hover:text-brand-400 transition-colors font-medium">
+            <Link to="/" className="text-white hover:text-green-500 transition-colors font-medium">
               Home
             </Link>
             {user && (
               <>
-                <Link to="/portfolio" className="text-gray-400 hover:text-brand-400 transition-colors">
+                <Link to="/portfolio" className="text-gray-400 hover:text-green-500 transition-colors">
                   Portfolio
                 </Link>
-                <Link to="/create" className="text-gray-400 hover:text-brand-400 transition-colors">
+                <Link to="/create" className="text-gray-400 hover:text-green-500 transition-colors">
                   Create Token
                 </Link>
-                <Link to="/wallets" className="text-gray-400 hover:text-brand-400 transition-colors">
+                <Link to="/wallets" className="text-gray-400 hover:text-green-500 transition-colors">
                   Wallets
                 </Link>
               </>
@@ -77,13 +77,13 @@ export default function Header({ isDark, setIsDark }) {
                 <div className="hidden md:block relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-dark-800 border border-white/10 hover:bg-dark-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg btn-secondary transition-colors"
                   >
                     <User className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-300">{user.email}</span>
                   </button>
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-dark-800 border border-white/10 rounded-lg shadow-lg py-2 z-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-dark-800 border border-gray-700 rounded-lg shadow-lg py-2 z-50">
                       <Link
                         to="/portfolio"
                         onClick={() => setUserMenuOpen(false)}
@@ -121,13 +121,13 @@ export default function Header({ isDark, setIsDark }) {
               <>
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-white/10 transition-colors"
+                  className="px-4 py-2 rounded-lg btn-secondary transition-colors"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 rounded-lg bg-gradient-hot hover:opacity-90 transition-opacity font-medium"
+                  className="px-4 py-2 rounded-lg btn-primary transition-colors"
                 >
                   Sign Up
                 </Link>
@@ -137,7 +137,7 @@ export default function Header({ isDark, setIsDark }) {
             {/* Dark Mode Toggle */}
             <button
               onClick={() => setIsDark(!isDark)}
-              className="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-white/10 transition-colors"
+              className="p-2 rounded-lg btn-secondary transition-colors"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -146,12 +146,12 @@ export default function Header({ isDark, setIsDark }) {
             <div className="md:hidden relative" ref={mobileMenuRef}>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-white/10 transition-colors"
+                className="p-2 rounded-lg btn-secondary transition-colors"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               {mobileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-dark-800 border border-white/10 rounded-lg shadow-lg py-2 z-50">
+                <div className="absolute right-0 mt-2 w-56 bg-dark-800 border border-gray-700 rounded-lg shadow-lg py-2 z-50">
                   {user ? (
                     <>
                       <div className="px-4 py-2 border-b border-white/10">

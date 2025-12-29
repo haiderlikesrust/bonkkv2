@@ -1,7 +1,7 @@
 {
-  "name": "bonkv2-fun",
+  "name": "ponk-fun",
   "version": "1.0.0",
-  "description": "Backend for bonkv2.fun using PumpPortal API",
+  "description": "Backend for ponk.fun using PumpPortal API",
   "main": "backend/server.js",
   "type": "module",
   "scripts": {

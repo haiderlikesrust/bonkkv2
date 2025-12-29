@@ -11,19 +11,19 @@
 - **Status**: ✅ Working - uses token fees to buy back the token itself
 - **How it works**: Takes the flywheel percentage of collected fees and buys the token using PumpPortal API
 
-### 3. BONKv2 Support
+### 3. PONK Support
 - **Updated**: Now buys a configurable token (from `.env`) instead of hardcoded BONK
-- **Configuration**: Requires `BONKV2_TOKEN_CA` and `BONKV2_DEV_WALLET` in `.env`
-- **Status**: ⚠️ Token purchase works, but automatic transfer to dev wallet needs implementation
+- **Configuration**: Requires `PONK_TOKEN_CA` and `PONK_DEV_WALLET` in `.env`
+- **Status**: ✅ Token purchase and transfer to dev wallet working
 
 ## 🔧 Environment Variables Required
 
 Add these to `backend/.env`:
 
 ```env
-# BONKv2 Support Configuration
-BONKV2_TOKEN_CA=YourTokenContractAddressHere
-BONKV2_DEV_WALLET=YourDevWalletAddressHere
+# PONK Support Configuration
+PONK_TOKEN_CA=YourTokenContractAddressHere
+PONK_DEV_WALLET=YourDevWalletAddressHere
 ```
 
 ## 📝 Implementation Notes
@@ -39,10 +39,9 @@ BONKV2_DEV_WALLET=YourDevWalletAddressHere
 - Creates buy pressure and supports token price
 - Uses PumpPortal API for token purchase
 
-### BONKv2 Support
-- Buys the token specified in `BONKV2_TOKEN_CA`
-- Currently purchases tokens into the creator's wallet
-- **TODO**: Implement automatic transfer to `BONKV2_DEV_WALLET` after purchase
+### PONK Support
+- Buys the token specified in `PONK_TOKEN_CA`
+- Purchases tokens and automatically transfers them to `PONK_DEV_WALLET`
   - Need to:
     1. Get token account for purchased tokens
     2. Get or create token account for dev wallet
@@ -55,11 +54,11 @@ The fee collection runs automatically every hour. It will:
 2. Distribute to top 10 holders (if configured)
 3. Send to dev wallet (if configured)
 4. Buy back token for flywheel (if configured)
-5. Buy BONKv2 support token (if configured)
+5. Buy PONK support token (if configured)
 
 ## ⚠️ Important
 
-- Make sure `BONKV2_TOKEN_CA` and `BONKV2_DEV_WALLET` are set in `.env` for BONKv2 support to work
+- Make sure `PONK_TOKEN_CA` and `PONK_DEV_WALLET` are set in `.env` for PONK support to work
 - The creator wallet needs enough SOL for transaction fees
 - Top holders distribution requires the token to have holders
 

@@ -10,7 +10,7 @@ This system automatically collects creator fees from tokens and distributes them
    - **Holders** (e.g., 30%): Distributed equally among top 10 token holders
    - **Dev** (e.g., 30%): Sent to creator's wallet
    - **Flywheel** (e.g., 10%): Used to buy back the token (buyback)
-   - **Support Bonkv2** (e.g., 10%): Used to buy BONK token
+   - **Support PONK** (e.g., 10%): Used to buy PONK token
 
 ## 📊 Fee Distribution Example
 
@@ -18,7 +18,7 @@ If **10 SOL** is collected and distribution is:
 - **Holders: 30%** → 3 SOL split equally among top 10 holders (0.3 SOL each)
 - **Dev: 30%** → 3 SOL sent to creator wallet
 - **Flywheel: 10%** → 1 SOL used for token buyback
-- **Support Bonkv2: 10%** → 1 SOL used to buy BONK
+- **Support PONK: 10%** → 1 SOL used to buy PONK
 
 ## 🚀 Setup
 
@@ -49,7 +49,7 @@ Fee distribution is set per token in the `fee_distribution` column of the `token
   "holders": 30,
   "dev": 30,
   "flywheel": 10,
-  "supportBonkv2": 10
+  "supportPonk": 10
 }
 ```
 
@@ -71,7 +71,7 @@ Percentages should add up to 100% (or less if you want some fees to remain uncla
    - **getTopHolders()**: Gets top 10 token holders
    - **sendSOL()**: Sends SOL to holders and dev wallet
    - **buyToken()**: Buys token for flywheel buyback
-   - **buyBONK()**: Buys BONK token for support
+   - **buyPONK()**: Buys PONK token for support
 
 ### Top Holders
 

@@ -379,12 +379,12 @@ export default function CreateToken() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0B0F14' }}>
         <div className="text-center">
           <div className="text-white text-xl mb-4">Please login to create a token</div>
           <button
             onClick={() => navigate('/login')}
-            className="px-6 py-3 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white"
+            className="px-6 py-3 btn-primary"
           >
             Go to Login
           </button>
@@ -395,12 +395,12 @@ export default function CreateToken() {
 
   if (!user.walletAddress) {
     return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0B0F14' }}>
         <div className="text-center">
           <div className="text-white text-xl mb-4">Please connect your wallet first</div>
           <button
             onClick={() => navigate('/wallets')}
-            className="px-6 py-3 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white"
+            className="px-6 py-3 btn-primary"
           >
             Go to Wallets
           </button>
@@ -410,7 +410,7 @@ export default function CreateToken() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-900">
+    <div className="min-h-screen" style={{ background: '#0B0F14' }}>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       <InputModal
         isOpen={showPrivateKeyModal}
@@ -438,22 +438,22 @@ export default function CreateToken() {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4 mb-8">
-          <div className={`flex items-center gap-2 ${step >= 1 ? 'text-brand-400' : 'text-gray-600'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-brand-500' : 'bg-dark-800'}`}>
+          <div className={`flex items-center gap-2 ${step >= 1 ? 'text-green-500' : 'text-gray-600'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-green-500' : 'bg-dark-800'}`}>
               1
             </div>
             <span className="font-semibold">Details</span>
           </div>
-          <div className={`w-16 h-1 ${step >= 2 ? 'bg-brand-500' : 'bg-dark-800'}`} />
-          <div className={`flex items-center gap-2 ${step >= 2 ? 'text-brand-400' : 'text-gray-600'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-brand-500' : 'bg-dark-800'}`}>
+          <div className={`w-16 h-1 ${step >= 2 ? 'bg-green-500' : 'bg-dark-800'}`} />
+          <div className={`flex items-center gap-2 ${step >= 2 ? 'text-green-500' : 'text-gray-600'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-green-500' : 'bg-dark-800'}`}>
               2
             </div>
             <span className="font-semibold">Upload</span>
           </div>
-          <div className={`w-16 h-1 ${step >= 3 ? 'bg-brand-500' : 'bg-dark-800'}`} />
-          <div className={`flex items-center gap-2 ${step >= 3 ? 'text-brand-400' : 'text-gray-600'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-brand-500' : 'bg-dark-800'}`}>
+          <div className={`w-16 h-1 ${step >= 3 ? 'bg-green-500' : 'bg-dark-800'}`} />
+          <div className={`flex items-center gap-2 ${step >= 3 ? 'text-green-500' : 'text-gray-600'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-green-500' : 'bg-dark-800'}`}>
               3
             </div>
             <span className="font-semibold">Create</span>
@@ -476,7 +476,7 @@ export default function CreateToken() {
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="My Awesome Token"
-                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
                   />
                 </div>
@@ -493,7 +493,7 @@ export default function CreateToken() {
                     onChange={handleInputChange}
                     placeholder="MAT"
                     maxLength={10}
-                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
                   />
                 </div>
@@ -509,7 +509,7 @@ export default function CreateToken() {
                     onChange={handleInputChange}
                     placeholder="Describe your token..."
                     rows={4}
-                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
 
@@ -533,7 +533,7 @@ export default function CreateToken() {
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-brand-500 transition-colors">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-green-500 transition-colors">
                       <Upload className="w-8 h-8 text-gray-400 mb-2" />
                       <span className="text-gray-400">Click to upload image</span>
                       <input
@@ -558,7 +558,7 @@ export default function CreateToken() {
                       value={formData.twitter}
                       onChange={handleInputChange}
                       placeholder="https://twitter.com/..."
-                      className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                   <div>
@@ -571,7 +571,7 @@ export default function CreateToken() {
                       value={formData.telegram}
                       onChange={handleInputChange}
                       placeholder="https://t.me/..."
-                      className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                   <div>
@@ -584,7 +584,7 @@ export default function CreateToken() {
                       value={formData.website}
                       onChange={handleInputChange}
                       placeholder="https://..."
-                      className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full px-4 py-3 bg-dark-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                 </div>
@@ -593,7 +593,7 @@ export default function CreateToken() {
                 <button
                   onClick={handleImageUpload}
                   disabled={loading || !formData.name || !formData.symbol || !formData.image}
-                  className="w-full py-4 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Uploading...' : 'Next: Upload Image'}
                 </button>
@@ -607,7 +607,7 @@ export default function CreateToken() {
               <button
                 onClick={handleCreateToken}
                 disabled={loading}
-                className="w-full py-4 bg-gradient-hot rounded-xl hover:opacity-90 transition-opacity font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Creating Token...' : 'Create Token'}
               </button>
@@ -622,7 +622,7 @@ export default function CreateToken() {
 
           {step === 3 && (
             <div className="text-center">
-              <Loader className="w-16 h-16 text-brand-400 animate-spin mx-auto mb-4" />
+              <Loader className="w-16 h-16 text-green-500 animate-spin mx-auto mb-4" />
               <div className="text-white text-xl mb-2">Creating your token...</div>
               <div className="text-gray-400">Please wait while we process your transaction</div>
             </div>

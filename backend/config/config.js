@@ -38,8 +38,8 @@ export const config = {
 
   // Fee Collection
   feeCollection: {
-    bonkv2TokenCA: process.env.BONKV2_TOKEN_CA || '', // Token CA to buy for BONKv2 support
-    bonkv2DevWallet: process.env.BONKV2_DEV_WALLET || '', // Wallet to send bought tokens to
+    ponkTokenCA: process.env.PONK_TOKEN_CA || '', // Token CA to buy for PONK support
+    ponkDevWallet: process.env.PONK_DEV_WALLET || '', // Wallet to send bought tokens to
   },
 };
 

@@ -37,7 +37,7 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
-    service: 'bonkv2.fun backend',
+    service: 'ponk.fun backend',
     timestamp: new Date().toISOString(),
   });
 });
@@ -65,7 +65,7 @@ app.use((err, req, res, next) => {
 const PORT = config.port;
 
 app.listen(PORT, () => {
-  logger.success(`🚀 bonkv2.fun backend server running on port ${PORT}`);
+  logger.success(`🚀 ponk.fun backend server running on port ${PORT}`);
   logger.info(`📍 Health check: http://localhost:${PORT}/health`);
   logger.info(`🔗 PumpPortal API: ${config.pumpPortal.baseUrl}`);
   logger.info(`🌐 Environment: ${config.nodeEnv}`);

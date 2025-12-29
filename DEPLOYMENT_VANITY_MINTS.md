@@ -10,7 +10,7 @@ Make sure `vanity-mints-pool.json` exists in the project root on your VPS:
 
 ```bash
 # On your VPS
-cd ~/bonkv2
+cd ~/ponk
 ls -la vanity-mints-pool.json
 ```
 
@@ -62,10 +62,10 @@ Then:
 **File not found:**
 ```bash
 # Check if file exists
-ls -la ~/bonkv2/vanity-mints-pool.json
+ls -la ~/ponk/vanity-mints-pool.json
 
 # If missing, copy from local or generate
-scp vanity-mints-pool.json user@vps:~/bonkv2/
+scp vanity-mints-pool.json user@vps:~/ponk/
 ```
 
 **Permission denied:**
@@ -78,7 +78,7 @@ chmod 644 vanity-mints-pool.json
 # Remove the directory Docker created
 rm -rf vanity-mints-pool.json
 # Copy the actual file
-scp vanity-mints-pool.json user@vps:~/bonkv2/
+scp vanity-mints-pool.json user@vps:~/ponk/
 ```
 
 ## Notes

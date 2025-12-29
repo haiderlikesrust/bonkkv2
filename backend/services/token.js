@@ -100,7 +100,7 @@ class TokenService {
         holders: 0,
         dev: 100,
         flywheel: 0,
-        supportBonkv2: 0,
+        supportPonk: 0,
       });
 
       const result = stmt.run(

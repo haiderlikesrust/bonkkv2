@@ -64,7 +64,7 @@ export default function FeeAllocationTracker({ mint, loadDelay = 0 }) {
   const totalPercent = (feeDistribution.holders || 0) + 
                       (feeDistribution.dev || 0) + 
                       (feeDistribution.flywheel || 0) + 
-                      (feeDistribution.supportBonkv2 || 0);
+                      (feeDistribution.supportPonk || 0);
 
   const distributionItems = [
     {
@@ -89,8 +89,8 @@ export default function FeeAllocationTracker({ mint, loadDelay = 0 }) {
       bgColor: 'bg-yellow-500/20',
     },
     {
-      label: 'BONKv2 Support',
-      value: feeDistribution.supportBonkv2 || 0,
+      label: 'PONK Support',
+      value: feeDistribution.supportPonk || 0,
       icon: Gift,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
@@ -174,7 +174,7 @@ export default function FeeAllocationTracker({ mint, loadDelay = 0 }) {
                       href={tx.solscanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-brand-400 hover:text-brand-300 transition-colors"
+                      className="text-green-500 hover:text-green-600 transition-colors"
                     >
                       View
                     </a>

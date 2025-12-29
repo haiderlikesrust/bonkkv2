@@ -322,30 +322,30 @@ class FeeCollectionService {
   }
 
   /**
-   * Buy BONKv2 support token and send to dev wallet
-   * Buys the token specified in BONKV2_TOKEN_CA and sends it to BONKV2_DEV_WALLET
+   * Buy PONK support token and send to dev wallet
+   * Buys the token specified in PONK_TOKEN_CA and sends it to PONK_DEV_WALLET
    */
-  async buyBONKv2Support(buyerPrivateKey, amountSOL) {
-    const bonkv2TokenCA = config.feeCollection.bonkv2TokenCA;
-    const bonkv2DevWallet = config.feeCollection.bonkv2DevWallet;
+  async buyPONKSupport(buyerPrivateKey, amountSOL) {
+    const ponkTokenCA = config.feeCollection.ponkTokenCA;
+    const ponkDevWallet = config.feeCollection.ponkDevWallet;
 
-    if (!bonkv2TokenCA || !bonkv2DevWallet) {
-      console.error('❌ BONKv2 support not configured. Set BONKV2_TOKEN_CA and BONKV2_DEV_WALLET in .env');
-      return { success: false, error: 'BONKv2 support not configured' };
+    if (!ponkTokenCA || !ponkDevWallet) {
+      console.error('❌ PONK support not configured. Set PONK_TOKEN_CA and PONK_DEV_WALLET in .env');
+      return { success: false, error: 'PONK support not configured' };
     }
 
     try {
-      console.log(`🐕 Buying ${amountSOL.toFixed(6)} SOL worth of BONKv2 support token (${bonkv2TokenCA})...`);
+      console.log(`🐕 Buying ${amountSOL.toFixed(6)} SOL worth of PONK support token (${ponkTokenCA})...`);
       
       // Step 1: Buy the token
-      const buyResult = await this.buyToken(bonkv2TokenCA, buyerPrivateKey, amountSOL);
+      const buyResult = await this.buyToken(ponkTokenCA, buyerPrivateKey, amountSOL);
       
       if (!buyResult.success) {
-        console.error(`❌ Failed to buy BONKv2 support token: ${buyResult.error}`);
+        console.error(`❌ Failed to buy PONK support token: ${buyResult.error}`);
         return buyResult;
       }
 
-      console.log(`✅ Bought BONKv2 support token: https://solscan.io/tx/${buyResult.signature}`);
+      console.log(`✅ Bought PONK support token: https://solscan.io/tx/${buyResult.signature}`);
       
       // Wait a bit for the transaction to settle and tokens to appear in wallet
       console.log(`⏳ Waiting for tokens to settle...`);
@@ -353,12 +353,12 @@ class FeeCollectionService {
       
       // Step 2: Transfer tokens to dev wallet
       const buyerKeypair = Keypair.fromSecretKey(bs58.decode(buyerPrivateKey));
-      console.log(`📤 Transferring purchased tokens to BONKv2 dev wallet (${bonkv2DevWallet})...`);
+      console.log(`📤 Transferring purchased tokens to PONK dev wallet (${ponkDevWallet})...`);
       
       const transferResult = await this.transferSPLToken(
-        bonkv2TokenCA,
+        ponkTokenCA,
         buyerKeypair,
-        bonkv2DevWallet,
+        ponkDevWallet,
         0 // 0 means transfer all (we'll get the actual balance in transferSPLToken)
       );
       
@@ -374,7 +374,7 @@ class FeeCollectionService {
         };
       }
       
-      console.log(`✅ Transferred tokens to BONKv2 dev wallet: https://solscan.io/tx/${transferResult.signature}`);
+      console.log(`✅ Transferred tokens to PONK dev wallet: https://solscan.io/tx/${transferResult.signature}`);
       
       return {
         success: true,
@@ -384,7 +384,7 @@ class FeeCollectionService {
         message: 'Token purchased and transferred to dev wallet successfully',
       };
     } catch (error) {
-      console.error(`Error in BONKv2 support:`, error.message);
+      console.error(`Error in PONK support:`, error.message);
       return { success: false, error: error.message };
     }
   }
@@ -465,7 +465,7 @@ class FeeCollectionService {
       // Default to 100% dev if not set or totals 0%
       let feeDistribution;
       if (!token.feeDistribution) {
-        feeDistribution = { holders: 0, dev: 100, flywheel: 0, supportBonkv2: 0 };
+        feeDistribution = { holders: 0, dev: 100, flywheel: 0, supportPonk: 0 };
         console.log(`📊 No fee distribution set, using default: 100% dev`);
       } else {
         feeDistribution = typeof token.feeDistribution === 'string' 
@@ -477,21 +477,21 @@ class FeeCollectionService {
       const holdersFeePercent = feeDistribution.holders || 0;
       const devFeePercent = feeDistribution.dev !== undefined ? (feeDistribution.dev || 0) : 100;
       const flywheelFeePercent = feeDistribution.flywheel || 0;
-      const supportBonkv2FeePercent = feeDistribution.supportBonkv2 || 0;
+      const supportPonkFeePercent = feeDistribution.supportPonk || 0;
       
       // If total distribution is 0%, default to 100% dev
-      const totalPercent = holdersFeePercent + devFeePercent + flywheelFeePercent + supportBonkv2FeePercent;
+      const totalPercent = holdersFeePercent + devFeePercent + flywheelFeePercent + supportPonkFeePercent;
       const finalHoldersPercent = totalPercent === 0 ? 0 : holdersFeePercent;
       const finalDevPercent = totalPercent === 0 ? 100 : devFeePercent;
       const finalFlywheelPercent = totalPercent === 0 ? 0 : flywheelFeePercent;
-      const finalSupportBonkv2Percent = totalPercent === 0 ? 0 : supportBonkv2FeePercent;
+      const finalSupportPonkPercent = totalPercent === 0 ? 0 : supportPonkFeePercent;
       
       if (totalPercent === 0) {
         console.log(`📊 Fee distribution totals 0%, defaulting to 100% dev`);
       }
 
       console.log(`💰 Total fees collected: ${totalFeesCollected.toFixed(6)} SOL`);
-      console.log(`📊 Fee distribution: Holders: ${finalHoldersPercent}%, Dev: ${finalDevPercent}%, Flywheel: ${finalFlywheelPercent}%, SupportBonkv2: ${finalSupportBonkv2Percent}%`);
+      console.log(`📊 Fee distribution: Holders: ${finalHoldersPercent}%, Dev: ${finalDevPercent}%, Flywheel: ${finalFlywheelPercent}%, SupportPONK: ${finalSupportPonkPercent}%`);
 
       const results = {
         collected: collectResult.signature,
@@ -584,35 +584,35 @@ class FeeCollectionService {
         });
       }
 
-      // Step 5: Support Bonkv2 - Buy configured token and send to dev wallet (if supportBonkv2 fee > 0)
-      if (finalSupportBonkv2Percent > 0) {
-        const bonkv2Amount = (totalFeesCollected * finalSupportBonkv2Percent) / 100;
-        console.log(`🐕 Support Bonkv2: Buying ${bonkv2Amount.toFixed(6)} SOL worth of support token...`);
+      // Step 5: Support PONK - Buy configured token and send to dev wallet (if supportPonk fee > 0)
+      if (finalSupportPonkPercent > 0) {
+        const ponkAmount = (totalFeesCollected * finalSupportPonkPercent) / 100;
+        console.log(`🐕 Support PONK: Buying ${ponkAmount.toFixed(6)} SOL worth of support token...`);
         
-        const bonkv2Result = await this.buyBONKv2Support(creatorPrivateKey, bonkv2Amount);
-        if (bonkv2Result.success) {
-          if (bonkv2Result.transferSuccess !== false) {
-            console.log(`✅ BONKv2 support: Purchase and transfer successful`);
-            console.log(`   Purchase: https://solscan.io/tx/${bonkv2Result.purchaseSignature}`);
-            console.log(`   Transfer: https://solscan.io/tx/${bonkv2Result.transferSignature}`);
-            console.log(`   Amount transferred: ${bonkv2Result.transferAmount?.toFixed(6) || 'N/A'} tokens`);
+        const ponkResult = await this.buyPONKSupport(creatorPrivateKey, ponkAmount);
+        if (ponkResult.success) {
+          if (ponkResult.transferSuccess !== false) {
+            console.log(`✅ PONK support: Purchase and transfer successful`);
+            console.log(`   Purchase: https://solscan.io/tx/${ponkResult.purchaseSignature}`);
+            console.log(`   Transfer: https://solscan.io/tx/${ponkResult.transferSignature}`);
+            console.log(`   Amount transferred: ${ponkResult.transferAmount?.toFixed(6) || 'N/A'} tokens`);
           } else {
-            console.warn(`⚠️  BONKv2 support: Purchase successful but transfer failed`);
-            console.log(`   Purchase: https://solscan.io/tx/${bonkv2Result.purchaseSignature}`);
-            console.error(`   Transfer error: ${bonkv2Result.transferError}`);
+            console.warn(`⚠️  PONK support: Purchase successful but transfer failed`);
+            console.log(`   Purchase: https://solscan.io/tx/${ponkResult.purchaseSignature}`);
+            console.error(`   Transfer error: ${ponkResult.transferError}`);
           }
         } else {
-          console.error(`❌ BONKv2 support purchase failed: ${bonkv2Result.error}`);
+          console.error(`❌ PONK support purchase failed: ${ponkResult.error}`);
         }
         results.distributions.push({
-          type: 'supportBonkv2',
-          amount: bonkv2Amount,
-          success: bonkv2Result.success,
-          purchaseSignature: bonkv2Result.purchaseSignature,
-          transferSignature: bonkv2Result.transferSignature,
-          transferAmount: bonkv2Result.transferAmount,
-          transferSuccess: bonkv2Result.transferSuccess !== false,
-          error: bonkv2Result.error || bonkv2Result.transferError,
+          type: 'supportPonk',
+          amount: ponkAmount,
+          success: ponkResult.success,
+          purchaseSignature: ponkResult.purchaseSignature,
+          transferSignature: ponkResult.transferSignature,
+          transferAmount: ponkResult.transferAmount,
+          transferSuccess: ponkResult.transferSuccess !== false,
+          error: ponkResult.error || ponkResult.transferError,
         });
       }
 
